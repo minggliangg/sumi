@@ -1,0 +1,256 @@
+:root {
+  --bg: #fbfaf7;
+  --fg: #1f1e1c;
+  --muted: #9a978f;
+  --faint: #c9c6be;
+  --rule: rgb(0 0 0 / 0.06);
+  --hover: rgb(0 0 0 / 0.04);
+  --active-line: rgb(0 0 0 / 0.022);
+  --selection: rgb(31 30 28 / 0.12);
+
+  /* Prefer a locally installed Nerd Font (for icon glyphs); fall back to the bundled JetBrains Mono. */
+  --font-mono: 'JetBrainsMono Nerd Font', 'JetBrainsMono NF', 'JetBrainsMono Nerd Font Mono',
+    'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --tabbar-height: 36px;
+  --sidebar-width: 208px;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141414;
+    --fg: #e6e4df;
+    --muted: #77756f;
+    --faint: #4a4945;
+    --rule: rgb(255 255 255 / 0.06);
+    --hover: rgb(255 255 255 / 0.05);
+    --active-line: rgb(255 255 255 / 0.025);
+    --selection: rgb(230 228 223 / 0.16);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* ---------- layout ---------- */
+
+.app {
+  height: 100%;
+  display: grid;
+}
+
+.app[data-tab-layout='horizontal'] {
+  grid-template-rows: var(--tabbar-height) minmax(0, 1fr);
+}
+
+.app[data-tab-layout='vertical'] {
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+}
+
+.editor {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ---------- tab bar ---------- */
+
+.tabbar {
+  display: flex;
+  font-size: 12px;
+  color: var(--muted);
+  user-select: none;
+  min-width: 0;
+  min-height: 0;
+}
+
+.tabbar-list {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  scrollbar-width: none;
+}
+
+.tabbar-list::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  cursor: default;
+  white-space: nowrap;
+  transition: color 120ms ease;
+}
+
+.tab:hover {
+  color: var(--fg);
+}
+
+.tab[aria-selected='true'] {
+  color: var(--fg);
+}
+
+/* the ink mark: a thin bar under (or beside) the active tab */
+.tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  background: var(--fg);
+}
+
+.tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-close {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border-radius: 4px;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.tab:hover .tab-close,
+.tab[aria-selected='true'] .tab-close {
+  opacity: 1;
+}
+
+.tab-close:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.tabbar-actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 2px;
+}
+
+.tabbar-button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.tabbar-button:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+/* horizontal */
+
+[data-tab-layout='horizontal'] .tabbar {
+  align-items: stretch;
+  padding: 0 8px 0 clamp(12px, 6vw, 72px);
+  border-bottom: 1px solid var(--rule);
+}
+
+[data-tab-layout='horizontal'] .tabbar-list {
+  overflow-x: auto;
+  gap: 20px;
+}
+
+[data-tab-layout='horizontal'] .tab {
+  max-width: 220px;
+}
+
+[data-tab-layout='horizontal'] .tab[aria-selected='true']::after {
+  left: 0;
+  right: 22px;
+  bottom: -1px;
+  height: 1.5px;
+}
+
+/* vertical */
+
+[data-tab-layout='vertical'] .tabbar {
+  flex-direction: column;
+  border-right: 1px solid var(--rule);
+  padding: 16px 0 10px;
+}
+
+[data-tab-layout='vertical'] .tabbar-list {
+  flex-direction: column;
+  overflow-y: auto;
+  gap: 1px;
+}
+
+[data-tab-layout='vertical'] .tab {
+  height: 30px;
+  padding: 0 10px 0 18px;
+  justify-content: space-between;
+}
+
+[data-tab-layout='vertical'] .tab:hover {
+  background: var(--hover);
+}
+
+[data-tab-layout='vertical'] .tab[aria-selected='true']::after {
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 1.5px;
+}
+
+[data-tab-layout='vertical'] .tabbar-actions {
+  padding: 8px 12px 0;
+}
+
+/* ---------- status ---------- */
+
+.status {
+  position: fixed;
+  right: 16px;
+  bottom: 12px;
+  display: flex;
+  gap: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
