@@ -24,6 +24,8 @@ pnpm-debug.log*
 
 # Test / coverage
 coverage
+playwright-report
+test-results
 
 # Claude Code: share launch.json, keep personal settings local
 .claude/settings.local.json

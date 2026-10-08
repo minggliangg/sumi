@@ -15,7 +15,9 @@ function loadLayout(): TabLayout {
 }
 
 export default function App() {
-  const tabs = createTabs()
+  const tabs = createTabs((state) =>
+    state.doc.length === 0 || window.confirm('Close this tab and discard its text? Text is not saved yet.'),
+  )
   const [cursor, setCursor] = createSignal<Cursor>({ line: 1, col: 1, selected: 0 })
   const [layout, setLayout] = createSignal<TabLayout>(loadLayout())
 
@@ -32,7 +34,11 @@ export default function App() {
   // Alt-based shortcuts: Ctrl/Cmd+T/W/Tab are reserved by the browser.
   // Match on `code` so macOS Option dead keys don't interfere.
   function onKeyDown(e: KeyboardEvent) {
-    if (!e.altKey || e.ctrlKey || e.metaKey) return
+    if (!e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return
+    if (e.repeat && ['KeyN', 'KeyW', 'KeyL'].includes(e.code)) {
+      e.preventDefault()
+      return
+    }
     let handled = true
     if (e.shiftKey && e.code === 'KeyL') toggleLayout()
     else if (e.shiftKey) handled = false
@@ -48,8 +54,20 @@ export default function App() {
     }
   }
 
-  onMount(() => window.addEventListener('keydown', onKeyDown, { capture: true }))
-  onCleanup(() => window.removeEventListener('keydown', onKeyDown, { capture: true }))
+  function onBeforeUnload(e: BeforeUnloadEvent) {
+    if (!tabs.hasContent()) return
+    e.preventDefault()
+    e.returnValue = ''
+  }
+
+  onMount(() => {
+    window.addEventListener('keydown', onKeyDown, { capture: true })
+    window.addEventListener('beforeunload', onBeforeUnload)
+  })
+  onCleanup(() => {
+    window.removeEventListener('keydown', onKeyDown, { capture: true })
+    window.removeEventListener('beforeunload', onBeforeUnload)
+  })
 
   return (
     <main class="app" data-tab-layout={layout()}>

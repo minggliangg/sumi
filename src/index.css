@@ -119,12 +119,12 @@ button {
   color: var(--fg);
 }
 
-.tab[aria-selected='true'] {
+.tab[data-active='true'] {
   color: var(--fg);
 }
 
 /* the ink mark: a thin bar under (or beside) the active tab */
-.tab[aria-selected='true']::after {
+.tab[data-active='true']::after {
   content: '';
   position: absolute;
   background: var(--fg);
@@ -133,6 +133,20 @@ button {
 .tab-title {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.tab-select {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  text-align: left;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: -2px;
 }
 
 .tab-close {
@@ -148,7 +162,8 @@ button {
 }
 
 .tab:hover .tab-close,
-.tab[aria-selected='true'] .tab-close {
+.tab:focus-within .tab-close,
+.tab[data-active='true'] .tab-close {
   opacity: 1;
 }
 
@@ -183,7 +198,7 @@ button {
 
 [data-tab-layout='horizontal'] .tabbar {
   align-items: stretch;
-  padding: 0 8px 0 clamp(12px, 6vw, 72px);
+  padding: 0 8px 0 clamp(12px, 3vw, 32px);
   border-bottom: 1px solid var(--rule);
 }
 
@@ -196,7 +211,7 @@ button {
   max-width: 220px;
 }
 
-[data-tab-layout='horizontal'] .tab[aria-selected='true']::after {
+[data-tab-layout='horizontal'] .tab[data-active='true']::after {
   left: 0;
   right: 22px;
   bottom: -1px;
@@ -227,7 +242,7 @@ button {
   background: var(--hover);
 }
 
-[data-tab-layout='vertical'] .tab[aria-selected='true']::after {
+[data-tab-layout='vertical'] .tab[data-active='true']::after {
   left: 0;
   top: 8px;
   bottom: 8px;
@@ -236,6 +251,20 @@ button {
 
 [data-tab-layout='vertical'] .tabbar-actions {
   padding: 8px 12px 0;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .tab-close {
+    opacity: 1;
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (max-width: 600px) {
+  :root {
+    --sidebar-width: clamp(100px, 32vw, 160px);
+  }
 }
 
 /* ---------- status ---------- */

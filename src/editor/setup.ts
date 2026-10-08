@@ -15,8 +15,8 @@ const theme = EditorView.theme({
     lineHeight: '1.7',
   },
   // Generous bottom padding lets the last line scroll up away from the screen edge.
-  '.cm-content': { padding: '28px 0 40vh', caretColor: 'var(--fg)' },
-  '.cm-line': { padding: '0 clamp(20px, 6vw, 80px)' },
+  '.cm-content': { padding: '16px 0 24vh', caretColor: 'var(--fg)' },
+  '.cm-line': { padding: '0 clamp(16px, 3vw, 40px)' },
   '.cm-cursor, .cm-dropCursor': { borderLeft: '2px solid var(--fg)' },
   '.cm-activeLine': { backgroundColor: 'var(--active-line)' },
   '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground':
@@ -30,6 +30,7 @@ export const baseExtensions: Extension[] = [
   drawSelection(),
   highlightActiveLine(),
   EditorView.lineWrapping,
+  EditorView.contentAttributes.of({ 'aria-label': 'Text editor' }),
   keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
   theme,
 ]

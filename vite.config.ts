@@ -6,14 +6,15 @@ export default defineConfig({
   plugins: [
     solid(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // Keep updates waiting until every app window closes. Text lives in memory.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
       },
       manifest: {
-        name: '墨 sumi',
-        short_name: 'sumi',
+        name: 'sumi.',
+        short_name: 'sumi.',
         description: 'A minimal writing and code editor.',
         theme_color: '#fbfaf7',
         background_color: '#fbfaf7',

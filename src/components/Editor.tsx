@@ -32,6 +32,7 @@ export default function Editor(props: Props) {
       state: tabs.session(tabs.activeId())!.state,
       dispatchTransactions(trs, view) {
         view.update(trs)
+        tabs.saveSession(tabs.activeId(), { state: view.state })
         if (trs.some((tr) => tr.docChanged)) {
           tabs.setTitle(tabs.activeId(), titleFor(view.state.doc.line(1).text))
         }
@@ -48,10 +49,11 @@ export default function Editor(props: Props) {
         shownId = next
         const session = tabs.session(next)
         if (!session) return
+        const tabHasFocus = !!document.activeElement?.closest('.tab')
         view.setState(session.state)
         if (session.scroll) view.dispatch({ effects: session.scroll })
         props.onCursor(cursorOf(view.state))
-        view.focus()
+        if (!tabHasFocus) view.focus()
       }),
     )
 
@@ -60,5 +62,13 @@ export default function Editor(props: Props) {
     onCleanup(() => view.destroy())
   })
 
-  return <div class="editor" ref={host} />
+  return (
+    <div
+      class="editor"
+      id="editor-panel"
+      role="tabpanel"
+      aria-labelledby={`tab-control-${props.tabs.activeId()}`}
+      ref={host}
+    />
+  )
 }

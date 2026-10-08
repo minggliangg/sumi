@@ -21,10 +21,11 @@ const MAX_TITLE = 28
 export function titleFor(firstLine: string): string {
   const title = firstLine.trim().replace(/^#+\s*/, '')
   if (!title) return UNTITLED
-  return title.length > MAX_TITLE ? `${title.slice(0, MAX_TITLE - 1)}…` : title
+  const characters = Array.from(title)
+  return characters.length > MAX_TITLE ? `${characters.slice(0, MAX_TITLE - 1).join('')}…` : title
 }
 
-export function createTabs() {
+export function createTabs(beforeClose: (state: EditorState) => boolean = () => true) {
   const [tabs, setTabs] = createStore<Tab[]>([])
   const [activeId, setActiveId] = createSignal('')
   const sessions = new Map<string, TabSession>()
@@ -41,6 +42,8 @@ export function createTabs() {
   function close(id: string) {
     const index = tabs.findIndex((t) => t.id === id)
     if (index === -1) return
+    const current = sessions.get(id)
+    if (current && !beforeClose(current.state)) return
     sessions.delete(id)
     setTabs((list) => list.filter((t) => t.id !== id))
     // Always keep at least one tab open.
@@ -75,9 +78,13 @@ export function createTabs() {
     if (sessions.has(id)) sessions.set(id, value)
   }
 
+  function hasContent() {
+    return Array.from(sessions.values()).some(({ state }) => state.doc.length > 0)
+  }
+
   open()
 
-  return { tabs, activeId, open, close, select, selectIndex, cycle, setTitle, session, saveSession }
+  return { tabs, activeId, open, close, select, selectIndex, cycle, setTitle, session, saveSession, hasContent }
 }
 
 export type Tabs = ReturnType<typeof createTabs>
