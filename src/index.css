@@ -7,6 +7,7 @@
   --tabbar-height: 36px;
   --status-height: 30px;
   --sidebar-width: 208px;
+  --rail-width: 36px;
   --control-size: 28px;
 
   -webkit-text-size-adjust: 100%;
@@ -150,7 +151,8 @@ svg {
   .app[data-tab-layout='vertical'] {
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
-    grid-template-areas: 'tabs editor' 'tabs status';
+    /* The status bar spans the full width so the sidebar's footer meets its top rule. */
+    grid-template-areas: 'tabs editor' 'status status';
   }
 }
 
@@ -362,6 +364,46 @@ svg {
 
   [data-tab-layout='vertical'] .tabbar-separator {
     display: none;
+  }
+
+  /* Hidden tabs collapse to a narrow rail: one dot per tab, so they stay reachable. */
+  .app[data-tab-layout='vertical'][data-tabs-hidden='true'] {
+    grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  }
+
+  .app[data-tab-layout='vertical'][data-tabs-hidden='true'] .tabbar-actions,
+  .app[data-tab-layout='vertical'][data-tabs-hidden='true'] .tab-close {
+    display: none;
+  }
+
+  .app[data-tab-layout='vertical'][data-tabs-hidden='true'] .tabbar-list {
+    align-items: center;
+  }
+
+  .app[data-tab-layout='vertical'][data-tabs-hidden='true'] .tab {
+    width: 100%;
+    height: 24px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .app[data-tab-layout='vertical'][data-tabs-hidden='true'] .tab-select {
+    flex: none;
+    justify-content: center;
+  }
+
+  .app[data-tab-layout='vertical'][data-tabs-hidden='true'] .tab-title {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    font-size: 0;
+    background: var(--faint);
+    transition: background-color 120ms ease;
+  }
+
+  .app[data-tab-layout='vertical'][data-tabs-hidden='true'] .tab[data-active='true'] .tab-title,
+  .app[data-tab-layout='vertical'][data-tabs-hidden='true'] .tab:hover .tab-title {
+    background: var(--fg);
   }
 }
 
