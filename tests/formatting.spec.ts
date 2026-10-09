@@ -61,7 +61,8 @@ test('formatting is one undoable edit and an unchanged format adds no history', 
   await editor(page).focus()
   await page.keyboard.press('ControlOrMeta+z')
   await expect(editor(page)).toHaveText(source)
-  await page.keyboard.press('ControlOrMeta+Shift+z')
+  const isMac = await page.evaluate(() => /Mac/.test(navigator.platform))
+  await page.keyboard.press(isMac ? 'Meta+Shift+z' : 'Control+y')
   await expect(editor(page)).toHaveText(formatted)
 })
 
