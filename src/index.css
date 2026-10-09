@@ -91,6 +91,11 @@ body,
   margin: 0;
 }
 
+html {
+  /* Paints any area the page does not cover, such as a gesture bar, in the theme colour. */
+  background: var(--bg);
+}
+
 body {
   background: var(--bg);
   color: var(--fg);
@@ -146,6 +151,150 @@ svg {
 .tabbar { grid-area: tabs; }
 .editor { grid-area: editor; min-width: 0; min-height: 0; }
 .status { grid-area: status; }
+
+/* ---------- editor area and Markdown preview ---------- */
+
+.editor-area {
+  grid-area: editor;
+  display: flex;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.editor-area > .editor {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Narrow windows swap the editor for the preview; the editor stays mounted, just hidden. */
+.editor-area[data-preview='full'] > .editor {
+  display: none;
+}
+
+.preview-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+}
+
+.editor-area[data-preview='split'] > .preview-pane {
+  border-left: 1px solid var(--rule);
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  height: var(--tabbar-height);
+  padding: 0 8px 0 16px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.preview-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px clamp(16px, 4vw, 48px) 48px;
+  color: var(--fg);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* Full-width phone preview: leave room under the floating toggle. */
+.editor-area[data-preview='full'] > .preview-pane > .preview-body {
+  padding-top: 52px;
+}
+
+.preview-body > :first-child { margin-top: 0; }
+.preview-body h1,
+.preview-body h2,
+.preview-body h3,
+.preview-body h4 {
+  line-height: 1.25;
+  margin: 1.6em 0 0.6em;
+}
+.preview-body h1 { font-size: 1.8em; }
+.preview-body h2 { font-size: 1.45em; }
+.preview-body h3 { font-size: 1.2em; }
+.preview-body p,
+.preview-body ul,
+.preview-body ol,
+.preview-body blockquote,
+.preview-body pre,
+.preview-body table {
+  margin: 0 0 1em;
+}
+.preview-body ul,
+.preview-body ol { padding-left: 1.6em; }
+.preview-body blockquote {
+  padding-left: 1em;
+  border-left: 2px solid var(--rule);
+  color: var(--muted);
+}
+.preview-body a { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+.preview-body code,
+.preview-body pre {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--hover);
+}
+.preview-body code { padding: 0.1em 0.3em; border-radius: 4px; }
+.preview-body pre { padding: 12px 14px; border-radius: 6px; overflow-x: auto; }
+.preview-body pre code { padding: 0; background: none; }
+.preview-body table { border-collapse: collapse; display: block; overflow-x: auto; }
+.preview-body th,
+.preview-body td { border: 1px solid var(--rule); padding: 6px 10px; }
+.preview-body hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+.preview-body img { max-width: 100%; height: auto; }
+.preview-body .blocked-image {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px dashed var(--faint);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.preview-paused {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 32px clamp(16px, 4vw, 48px);
+  color: var(--muted);
+}
+
+.preview-toggle {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  /* Translucent so text underneath stays readable on narrow screens. */
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: var(--muted);
+  font-size: 12px;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.preview-toggle:hover { background: color-mix(in srgb, var(--hover) 90%, transparent); color: var(--fg); }
+.preview-toggle[aria-pressed='true'] { color: var(--fg); }
 
 @media (min-width: 641px) {
   .app[data-tab-layout='vertical'] {
@@ -772,9 +921,10 @@ svg {
 }
 
 @media (max-width: 640px) {
+  /* Matches the tab row's inset so the footer clears the rounded corners of modern phone screens. */
   .status {
-    padding-left: 14px;
-    padding-right: 4px;
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
   }
 
   .status-group-end {
