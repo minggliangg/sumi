@@ -4,7 +4,8 @@ import Recovery from './components/Recovery.tsx'
 import { createRecovery } from './storage/recovery.ts'
 import { exportFilename, languageForFilename, readImportedFile } from './editor/files.ts'
 import { createSignal, onCleanup, onMount, Show } from 'solid-js'
-import Editor, { type Cursor } from './components/Editor.tsx'
+import EditorArea from './components/EditorArea.tsx'
+import type { Cursor } from './components/Editor.tsx'
 import TabBar, { type TabLayout } from './components/TabBar.tsx'
 import StatusBar from './components/StatusBar.tsx'
 import ShortcutHelp from './components/ShortcutHelp.tsx'
@@ -73,6 +74,9 @@ export default function App() {
   const [cursor, setCursor] = createSignal<Cursor>({ line: 1, col: 1, selected: 0 })
   const [layout, setLayout] = createSignal<TabLayout>(loadLayout())
   const [tabsHidden, setTabsHidden] = createSignal(loadTabsHidden())
+  // Session-only: the preview stays open across Markdown tabs until toggled off.
+  const [previewOpen, setPreviewOpen] = createSignal(false)
+  const markdown = () => tabs.tabs.find(tab => tab.id === tabs.activeId())?.resolvedLanguage === 'markdown'
   const compact = createMediaQuery(COMPACT_QUERY)
   // Phones already hide vertical tabs behind their drawer, so the sidebar toggle is desktop-only.
   const canHideTabs = () => layout() === 'vertical' && !compact()
@@ -87,6 +91,11 @@ export default function App() {
     } catch {
       // Storage unavailable; the choice just won't persist.
     }
+  }
+
+  function togglePreview() {
+    if (!markdown()) return
+    setPreviewOpen(!previewOpen())
   }
 
   function toggleTabs() {
@@ -121,6 +130,7 @@ export default function App() {
       case 'jump': tabs.selectIndex(shortcut.index); break
       case 'layout': toggleLayout(); break
       case 'sidebar': toggleTabs(); break
+      case 'preview': togglePreview(); break
       case 'lines': appearance.setLineNumbers(!appearance.lineNumbers()); break
       case 'format': void tabs.formatDocument(tabs.activeId()); break
       case 'help': setShowShortcuts(true); break
@@ -166,7 +176,16 @@ export default function App() {
       />
       <input ref={importInput} type="file" aria-label="Import files" multiple hidden onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); importing = importing.then(() => importFiles(files)) }} />
       <Show when={tabs.ready()} fallback={<div class="editor" role="status">Restoring drafts…</div>}>
-        <Editor tabs={tabs} onCursor={setCursor} fontSize={font.size()} lineNumbers={appearance.lineNumbers()} />
+        <EditorArea
+          tabs={tabs}
+          markdown={markdown()}
+          previewOpen={previewOpen()}
+          onTogglePreview={togglePreview}
+          onClosePreview={() => setPreviewOpen(false)}
+          onCursor={setCursor}
+          fontSize={font.size()}
+          lineNumbers={appearance.lineNumbers()}
+        />
       </Show>
       <Show when={fileError()}><div class="file-error" role="status">{fileError()}</div></Show>
       <Recovery tabs={tabs} open={recoveryOpen()} onClose={() => setRecoveryOpen(false)} />

@@ -1,4 +1,5 @@
 import { readFile, access } from 'node:fs/promises'
+import { gzipSync } from 'node:zlib'
 import { expect, test } from '@playwright/test'
 
 interface SizeReport {
@@ -112,4 +113,34 @@ test('language chosen on the first visit is available after an offline reload', 
   await expect(page.getByRole('button', { name: 'Choose language', exact: true })).toHaveAttribute('data-language-status', 'ready')
   await page.getByRole('textbox').fill('def greet():\n    return "hello"')
   await expect(page.locator('.cm-content .tok-keyword').first()).toBeVisible()
+})
+
+// Ceilings with headroom above the current build, in gzipped bytes. Raise one
+// only deliberately, in the same change that explains the growth.
+const BUDGET = {
+  initialJavaScript: 140 * 1024,
+  combinedLanguages: 130 * 1024,
+  languagePack: 100 * 1024,
+  formatterPack: 250 * 1024,
+  // The Python formatter ships the ruff WebAssembly module, which dominates the build.
+  pythonFormatter: 4 * 1024 * 1024,
+}
+
+async function gzipOf(files: string[]) {
+  let total = 0
+  for (const file of files) total += gzipSync(await readFile(`dist/${file}`)).length
+  return total
+}
+
+test('bundle sizes stay within the recorded budget', async () => {
+  const bundles = await report()
+  expect(bundles.initialJavaScript.gzipBytes).toBeLessThanOrEqual(BUDGET.initialJavaScript)
+  expect(bundles.combinedLanguages.gzipBytes).toBeLessThanOrEqual(BUDGET.combinedLanguages)
+  for (const [name, pack] of Object.entries(bundles.languagePacks)) {
+    expect(await gzipOf(pack.files), `language pack ${name}`).toBeLessThanOrEqual(BUDGET.languagePack)
+  }
+  for (const [name, pack] of Object.entries(bundles.formatterPacks)) {
+    const limit = name === 'python' ? BUDGET.pythonFormatter : BUDGET.formatterPack
+    expect(await gzipOf(pack.files), `formatter pack ${name}`).toBeLessThanOrEqual(limit)
+  }
 })

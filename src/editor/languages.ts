@@ -45,10 +45,10 @@ export function waitForWorker() {
 }
 
 declare const __SUMI_LANGUAGE_MANIFEST__: string
-interface LanguageAssets { languagePacks: Record<string, { files: string[] }>; formatterPacks: Record<string, { files: string[] }> }
+interface LanguageAssets { languagePacks: Record<string, { files: string[] }>; formatterPacks: Record<string, { files: string[] }>; previewPacks: Record<string, { files: string[] }> }
 let assets: Promise<LanguageAssets> | undefined
 const prepared = new Map<string, Promise<void>>()
-export async function prepareAssets(group: 'languagePacks' | 'formatterPacks', pack: string) {
+export async function prepareAssets(group: 'languagePacks' | 'formatterPacks' | 'previewPacks', pack: string) {
   if (!import.meta.env.PROD) return
   // Fetch every dependency before entering the browser's module map. Network
   // failures then remain retryable, and a controlling worker caches the files.

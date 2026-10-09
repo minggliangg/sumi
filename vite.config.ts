@@ -101,17 +101,41 @@ function languageBundleReport(): Plugin {
           formatterPacks[key] = { ...size(files), entryFile: previous?.entryFile ?? file }
         }
       }
-      const report = { initialJavaScript: size(initialJavaScript), languagePacks, combinedLanguages: size(combined), formatterPacks, combinedFormatters: size(combinedFormatters) }
+      const previewFiles = new Set<string>()
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type === 'chunk' && Object.keys(chunk.modules).some(id => /\/node_modules\/(markdown-it|dompurify)\//.test(id))) {
+          visit(chunk.fileName, previewFiles)
+        }
+      }
+      initialJavaScript.forEach(file => previewFiles.delete(file))
+      const previewPacks = { markdown: size(previewFiles) }
+      const report = { initialJavaScript: size(initialJavaScript), languagePacks, combinedLanguages: size(combined), formatterPacks, combinedFormatters: size(combinedFormatters), previewPacks }
       this.emitFile({ type: 'asset', fileName: 'language-bundle-report.json', source: JSON.stringify(report, null, 2) })
-      this.emitFile({ type: 'asset', fileName: languageManifest, source: JSON.stringify({ languagePacks, formatterPacks }) })
+      this.emitFile({ type: 'asset', fileName: languageManifest, source: JSON.stringify({ languagePacks, formatterPacks, previewPacks }) })
       console.info(`Language payload: ${report.combinedLanguages.minifiedBytes} bytes minified, ${report.combinedLanguages.gzipBytes} bytes gzip`)
       console.info(`Formatter payload: ${report.combinedFormatters.minifiedBytes} bytes minified, ${report.combinedFormatters.gzipBytes} bytes gzip`)
     },
   }
 }
 
+// The Markdown preview's parser shares small helpers with the formatters and
+// language packs. Without its own chunk, Rollup folds them into the parser's
+// chunk, so every pack that needs them would also download the whole parser.
+const SHARED_MARKDOWN_DEPENDENCIES = /\/node_modules\/(entities|mdurl|uc\.micro|linkify-it|punycode\.js)\//
+
 export default defineConfig({
   define: { __SUMI_LANGUAGE_MANIFEST__: JSON.stringify(languageManifest) },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (SHARED_MARKDOWN_DEPENDENCIES.test(id)) return 'markdown-shared'
+          if (/\/node_modules\/markdown-it\//.test(id)) return 'markdown-it'
+          if (/\/node_modules\/dompurify\//.test(id)) return 'dompurify'
+        },
+      },
+    },
+  },
   worker: { format: 'es', plugins: () => [captureFormatterWorker()] },
   plugins: [
     solid(),
@@ -170,8 +194,8 @@ export default defineConfig({
         name: 'sumi.',
         short_name: 'sumi.',
         description: 'A minimal writing and code editor.',
-        theme_color: '#fbfaf7',
-        background_color: '#fbfaf7',
+        theme_color: '#141414',
+        background_color: '#141414',
         display: 'standalone',
         icons: [
           { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' },

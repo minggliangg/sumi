@@ -63,6 +63,8 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
   const [tabs, setTabs] = createStore<Tab[]>([])
   const [activeId, setActiveId] = createSignal('')
   const [workspaceVersion, setWorkspaceVersion] = createSignal(0)
+  // Ticks on every document edit so derived views (the Markdown preview) can follow text.
+  const [contentVersion, setContentVersion] = createSignal(0)
   const sessions = new Map<string, TabSession>()
   const [closedTabs, setClosedTabs] = createSignal<{ id: string; title: string; closedAt: number }[]>([])
   const closedDocuments = new Map<string, DocumentSnapshot>()
@@ -192,6 +194,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     const tab = tabs.find(tab => tab.id === id)
     if (!current || !tab) return
     changed()
+    setContentVersion(contentVersion() + 1)
     cancelFormat(id, 'Document changed. Format again.')
     let fullPaste = false
     let recountBytes = false
@@ -370,7 +373,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
 
   open()
 
-  return { tabs, activeId, workspaceVersion, open, close, select, selectIndex, cycle, setTitle, session, saveSession, hasContent, setLanguage, retryLanguage, documentChanged, setLanguageEffectsHandler, formatDocument, setFormatHandler, cancelFormatting, snapshot, restore, rename, closedTabs, recover, deleteClosed, setScrollTop, setChangeHandler }
+  return { tabs, activeId, workspaceVersion, contentVersion, open, close, select, selectIndex, cycle, setTitle, session, saveSession, hasContent, setLanguage, retryLanguage, documentChanged, setLanguageEffectsHandler, formatDocument, setFormatHandler, cancelFormatting, snapshot, restore, rename, closedTabs, recover, deleteClosed, setScrollTop, setChangeHandler }
 }
 
 export type Tabs = ReturnType<typeof createTabs>

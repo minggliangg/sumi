@@ -1,4 +1,4 @@
-type ShortcutAction = 'new' | 'close' | 'previous' | 'next' | 'jump' | 'layout' | 'sidebar' | 'lines' | 'help' | 'format'
+type ShortcutAction = 'new' | 'close' | 'previous' | 'next' | 'jump' | 'layout' | 'sidebar' | 'preview' | 'lines' | 'help' | 'format'
 
 interface Shortcut {
   action: ShortcutAction
@@ -20,6 +20,7 @@ export const shortcuts: Shortcut[] = [
   { action: 'jump', label: 'Jump to tab 1–9', altCode: 'Digit1-9', altLabel: 'Alt+1…9', repeatable: true },
   { action: 'layout', label: 'Toggle tab layout', altCode: 'KeyL', altLabel: 'Alt+Shift+L', altShift: true, ctrlShiftCode: 'KeyL', ctrlShiftLabel: 'Ctrl+Shift+L' },
   { action: 'sidebar', label: 'Show or hide vertical tabs', altCode: 'KeyB', altLabel: 'Alt+Shift+B', altShift: true },
+  { action: 'preview', label: 'Toggle Markdown preview', altCode: 'KeyP', altLabel: 'Alt+Shift+P', altShift: true },
   { action: 'lines', label: 'Toggle line numbers', altCode: 'KeyN', altLabel: 'Alt+Shift+N', altShift: true },
   { action: 'format', label: 'Format document', ctrlShiftCode: 'KeyF', ctrlShiftLabel: 'Ctrl+Shift+F' },
   { action: 'help', label: 'Keyboard shortcuts', altCode: 'Slash', altLabel: 'Alt+/', ctrlShiftCode: 'Slash', ctrlShiftLabel: 'Ctrl+Shift+/' },
