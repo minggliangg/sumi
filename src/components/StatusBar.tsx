@@ -1,9 +1,18 @@
 import { Show } from 'solid-js'
 import type { Cursor } from './Editor.tsx'
+import type { createAppUpdate } from '../updates.ts'
 
-export default function StatusBar(props: { cursor: Cursor }) {
+export default function StatusBar(props: { cursor: Cursor; update: ReturnType<typeof createAppUpdate> }) {
   return (
     <div class="status" aria-live="off">
+      <Show when={props.update.available()}>
+        <button type="button" class="update-button" disabled={props.update.updating()} onClick={() => void props.update.apply()}>
+          {props.update.updating() ? 'Updating…' : 'Update available'}
+        </button>
+      </Show>
+      <Show when={props.update.error()}>
+        <span role="status">{props.update.error()}</span>
+      </Show>
       <Show when={props.cursor.selected > 0}>
         <span>{props.cursor.selected} selected</span>
       </Show>

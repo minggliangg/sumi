@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     solid(),
     VitePWA({
-      // Keep updates waiting until every app window closes. Text lives in memory.
+      // Activation and reload require user approval while text lives in memory.
       registerType: 'prompt',
       includeAssets: ['favicon.svg'],
       workbox: {

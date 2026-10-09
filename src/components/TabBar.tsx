@@ -7,6 +7,8 @@ interface Props {
   tabs: Tabs
   layout: TabLayout
   onToggleLayout: () => void
+  onShowShortcuts: () => void
+  shortcutsOpen: boolean
 }
 
 export default function TabBar(props: Props) {
@@ -89,17 +91,32 @@ export default function TabBar(props: Props) {
         </For>
       </div>
       <div class="tabbar-actions">
-        <button type="button" class="tabbar-button" aria-label="New tab" title="New tab (Alt+N)" onClick={() => props.tabs.open()}>
+        <button type="button" class="tabbar-button" aria-label="New tab" title="New tab (Alt+N or Ctrl+Shift+Enter)" onClick={() => props.tabs.open()}>
           +
         </button>
         <button
           type="button"
           class="tabbar-button"
           aria-label="Toggle tab layout"
-          title="Toggle tab layout (Alt+Shift+L)"
+          title="Toggle tab layout (Alt+Shift+L or Ctrl+Shift+L)"
           onClick={props.onToggleLayout}
         >
           {props.layout === 'horizontal' ? '⫼' : '☰'}
+        </button>
+        <button
+          type="button"
+          class="tabbar-button"
+          aria-label="Keyboard shortcuts"
+          aria-haspopup="dialog"
+          aria-controls="shortcut-help"
+          aria-expanded={props.shortcutsOpen}
+          title="Keyboard shortcuts (Alt+/ or Ctrl+Shift+/)"
+          onClick={props.onShowShortcuts}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <rect x="2.5" y="5.5" width="19" height="13" rx="2" />
+            <path d="M6 9h2m3 0h2m3 0h2M6 12h2m3 0h2m3 0h2M7 15h10" />
+          </svg>
         </button>
       </div>
     </nav>
