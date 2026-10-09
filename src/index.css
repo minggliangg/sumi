@@ -466,3 +466,52 @@ button:focus-visible {
 }
 .format-button:hover:enabled { background: var(--hover); color: var(--fg); }
 .format-button:disabled { opacity: 0.6; cursor: default; }
+
+/* ---------- draft recovery ---------- */
+.tabbar-button svg { display: block; flex: none; }
+.tabbar-button:disabled { opacity: 0.5; cursor: default; }
+[data-tab-layout='vertical'] .tabbar-actions { flex-wrap: wrap; }
+.recovery-dialog {
+  width: min(480px, calc(100% - 24px));
+  max-height: calc(100dvh - 32px);
+  padding: 18px;
+  border: 1px solid var(--faint);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 12px;
+  overflow: auto;
+}
+.recovery-dialog::backdrop { background: rgb(0 0 0 / 0.25); }
+.recovery-intro { color: var(--muted); line-height: 1.6; }
+.recovery-list { display: grid; gap: 8px; margin-top: 16px; }
+.recovery-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--rule); }
+.recovery-restore { flex: 1; min-width: 0; padding: 6px; text-align: left; border-radius: 4px; }
+.recovery-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recovery-restore time { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; }
+.recovery-restore:hover, .recovery-delete:hover, .storage-retry:hover { background: var(--hover); }
+.recovery-delete, .storage-retry { padding: 6px; border-radius: 4px; }
+.storage-retry { pointer-events: auto; text-decoration: underline; }
+@media (max-width: 480px) {
+  [data-tab-layout='horizontal'] .tabbar { padding-left: 8px; padding-right: 4px; }
+  [data-tab-layout='horizontal'] .tabbar-list { gap: 10px; }
+  .tabbar-actions { gap: 0; }
+}
+
+.file-error {
+  position: fixed;
+  left: 16px;
+  bottom: 56px;
+  max-width: calc(100% - 32px);
+  background: var(--bg);
+  border: 1px solid var(--faint);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  z-index: 1;
+}
+
+/* Keep the floating status within the editor, clear of sidebar controls. */
+[data-tab-layout='vertical'] .status {
+  max-width: calc(100% - var(--sidebar-width) - 32px);
+}

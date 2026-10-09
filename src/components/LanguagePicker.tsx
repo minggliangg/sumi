@@ -45,7 +45,7 @@ export default function LanguagePicker(props: { tabs: Tabs }) {
       </Show>
       <dialog ref={dialog} class="language-picker" aria-labelledby="language-picker-title" onKeyDown={(event) => {
         if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close() }
-      }} onCancel={(event) => { event.preventDefault(); close() }} onClose={() => { if (!dialog.open) trigger.focus() }}>
+      }} onCancel={(event) => { event.preventDefault(); close() }}>
         <div class="shortcut-heading">
           <h1 id="language-picker-title">Language</h1>
           <button type="button" class="tabbar-button" aria-label="Close language picker" onClick={close}>×</button>

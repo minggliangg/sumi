@@ -1,4 +1,5 @@
-import { createSignal, onCleanup } from 'solid-js'
+import type { StoredDocument, StoredWorkspace } from '../storage/workspace.ts'
+import { batch, createSignal, onCleanup } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import { Transaction as EditorTransaction, type EditorState, type StateEffect, type Transaction, type Extension } from '@codemirror/state'
 import { isolateHistory } from '@codemirror/commands'
@@ -9,6 +10,7 @@ import { detectLanguage, loadLanguage, MAX_HIGHLIGHT_BYTES, SAMPLE_BYTES, utf8By
 export interface Tab {
   id: string
   title: string
+  filename?: string
   languageMode: LanguageMode
   resolvedLanguage: LanguageId | null
   languageStatus: LanguageStatus
@@ -21,6 +23,7 @@ export interface Tab {
 interface TabSession {
   state: EditorState
   scroll?: StateEffect<unknown>
+  scrollTop?: number
 }
 
 
@@ -37,8 +40,13 @@ export function titleFor(firstLine: string): string {
 export function createTabs(beforeClose: (state: EditorState) => boolean = () => true) {
   const [tabs, setTabs] = createStore<Tab[]>([])
   const [activeId, setActiveId] = createSignal('')
+  const [workspaceVersion, setWorkspaceVersion] = createSignal(0)
   const sessions = new Map<string, TabSession>()
-  let counter = 0
+  const [closedTabs, setClosedTabs] = createSignal<{ id: string; title: string; closedAt: number }[]>([])
+  const closedDocuments = new Map<string, StoredDocument>()
+  let onChange: (() => void) | undefined
+  const changed = () => onChange?.()
+  function setChangeHandler(handler?: () => void) { onChange = handler }
   let disposed = false
   const languageSessions = new Map<string, { bytes: number; generation: number; timer?: ReturnType<typeof setTimeout> }>()
   const formatJobs = new Map<string, FormatJob>()
@@ -98,6 +106,8 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     }
   }
 
+  function cancelFormatting() { for (const id of formatJobs.keys()) cancelFormat(id) }
+
   function setFormatHandler(handler?: typeof applyFormatToView) { applyFormatToView = handler }
 
   function configure(id: string, extension: Extension) {
@@ -113,6 +123,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     const generation = ++current.generation
     configure(id, [])
     metadata(id, { resolvedLanguage: language, languageStatus: language ? 'loading' : 'plain' })
+    changed()
     if (!language) return
     void loadLanguage(language).then(extension => {
       if (disposed || languageSessions.get(id) !== current || current.generation !== generation) return
@@ -139,6 +150,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     cancelFormat(id, 'Document changed. Format again.')
     clearTimeout(current.timer)
     metadata(id, { languageMode: mode })
+    changed()
     if (current.bytes > MAX_HIGHLIGHT_BYTES) {
       ++current.generation
       configure(id, [])
@@ -158,6 +170,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     const current = languageSessions.get(id)
     const tab = tabs.find(tab => tab.id === id)
     if (!current || !tab) return
+    changed()
     cancelFormat(id, 'Document changed. Format again.')
     let fullPaste = false
     let recountBytes = false
@@ -203,13 +216,16 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     applyToView = undefined
   })
 
-  function open(doc = '') {
-    const id = `tab-${++counter}`
-    sessions.set(id, { state: createEditorState(doc) })
+  function open(doc = '', filename?: string, restored?: StoredDocument) {
+    const id = restored?.id ?? crypto.randomUUID()
+    let state = createEditorState(doc)
+    if (restored) state = state.update({ selection: restored.selection }).state
+    sessions.set(id, { state, scrollTop: restored?.scrollTop ?? 0 })
     languageSessions.set(id, { bytes: utf8Bytes(doc), generation: 0 })
-    setTabs(tabs.length, { id, title: titleFor(doc.split('\n', 1)[0]), languageMode: 'auto', resolvedLanguage: null, languageStatus: 'plain', formatStatus: 'idle', formatError: '' })
-    if (doc) setLanguage(id, 'auto')
+    setTabs(tabs.length, { id, filename, title: filename ?? titleFor(doc.split('\n', 1)[0]), languageMode: 'auto', resolvedLanguage: null, languageStatus: 'plain', formatStatus: 'idle', formatError: '' })
+    if (restored || doc) setLanguage(id, restored?.languageMode ?? 'auto')
     setActiveId(id)
+    changed()
     return id
   }
 
@@ -218,6 +234,14 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     if (index === -1) return
     const current = sessions.get(id)
     if (current && !beforeClose(current.state)) return
+    if (current && current.state.doc.length) {
+      const document = storedDocument(id)
+      document.closedAt = Date.now()
+      closedDocuments.set(id, document)
+      const items = [{ id, title: tabs[index].title, closedAt: document.closedAt }, ...closedTabs().filter(tab => tab.id !== id)].slice(0, 20)
+      setClosedTabs(items)
+      for (const key of closedDocuments.keys()) if (!items.some(tab => tab.id === key)) closedDocuments.delete(key)
+    }
     cancelFormat(id)
     clearTimeout(languageSessions.get(id)?.timer)
     languageSessions.delete(id)
@@ -226,15 +250,16 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     // Always keep at least one tab open.
     if (tabs.length === 0) open()
     else if (activeId() === id) setActiveId(tabs[Math.min(index, tabs.length - 1)].id)
+    changed()
   }
 
   function select(id: string) {
-    if (sessions.has(id)) setActiveId(id)
+    if (sessions.has(id)) { setActiveId(id); changed() }
   }
 
   function selectIndex(index: number) {
     const tab = tabs[index]
-    if (tab) setActiveId(tab.id)
+    if (tab) select(tab.id)
   }
 
   function cycle(delta: number) {
@@ -244,7 +269,15 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
 
   function setTitle(id: string, title: string) {
     const index = tabs.findIndex((t) => t.id === id)
-    if (index !== -1) setTabs(index, 'title', title)
+    if (index !== -1 && !tabs[index].filename) setTabs(index, 'title', title)
+  }
+
+  function rename(id: string, name: string) {
+    const index = tabs.findIndex(tab => tab.id === id)
+    if (index === -1) return
+    const filename = Array.from(name.trim()).slice(0, 120).join('') || undefined
+    setTabs(index, { filename, title: filename ?? titleFor(sessions.get(id)!.state.doc.line(1).text) })
+    changed()
   }
 
   function session(id: string) {
@@ -252,16 +285,65 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
   }
 
   function saveSession(id: string, value: TabSession) {
-    if (sessions.has(id)) sessions.set(id, { ...sessions.get(id)!, ...value })
+    if (sessions.has(id)) { sessions.set(id, { ...sessions.get(id)!, ...value }); changed() }
   }
 
   function hasContent() {
     return Array.from(sessions.values()).some(({ state }) => state.doc.length > 0)
   }
 
+  function storedDocument(id: string): StoredDocument {
+    const current = sessions.get(id)!
+    const tab = tabs.find(tab => tab.id === id)!
+    return { id, text: current.state.doc.toString(), languageMode: tab.languageMode,
+      selection: { anchor: current.state.selection.main.anchor, head: current.state.selection.main.head },
+      scrollTop: current.scrollTop ?? 0, filename: tab.filename }
+  }
+  function snapshot(): Pick<StoredWorkspace, 'documents' | 'activeId' | 'closed'> {
+    return { documents: tabs.map(tab => storedDocument(tab.id)), activeId: activeId(), closed: closedTabs().map(tab => closedDocuments.get(tab.id)!) }
+  }
+  function restore(snapshot: Pick<StoredWorkspace, 'documents' | 'activeId' | 'closed'>) {
+    const handler = onChange
+    onChange = undefined
+    try {
+      // Expose one final workspace to reactive consumers, not each temporary
+      // active tab while the session map is being reconstructed.
+      batch(() => {
+        for (const job of formatJobs.values()) job.cancel()
+        formatJobs.clear()
+        for (const session of languageSessions.values()) clearTimeout(session.timer)
+        languageSessions.clear(); sessions.clear(); closedDocuments.clear()
+        setTabs([])
+        for (const document of snapshot.documents) open(document.text, document.filename, document)
+        if (!tabs.length) open()
+        select(snapshot.activeId)
+        for (const document of snapshot.closed.slice(0, 20)) closedDocuments.set(document.id, document)
+        setClosedTabs(snapshot.closed.slice(0, 20).map(document => ({ id: document.id, title: document.filename ?? titleFor(document.text.split('\n', 1)[0]!), closedAt: document.closedAt ?? Date.now() })))
+        // A retry can preserve the same active ID while replacing its state.
+        // The mounted view must still install the reconstructed EditorState.
+        setWorkspaceVersion(workspaceVersion() + 1)
+      })
+    } finally { onChange = handler }
+  }
+  function recover(id: string) {
+    const document = closedDocuments.get(id)
+    if (!document) return
+    deleteClosed(id)
+    open(document.text, document.filename, document)
+  }
+  function deleteClosed(id: string) {
+    closedDocuments.delete(id)
+    setClosedTabs(closedTabs().filter(tab => tab.id !== id))
+    changed()
+  }
+  function setScrollTop(id: string, value: number) {
+    const current = sessions.get(id)
+    if (current && current.scrollTop !== value) { current.scrollTop = value; changed() }
+  }
+
   open()
 
-  return { tabs, activeId, open, close, select, selectIndex, cycle, setTitle, session, saveSession, hasContent, setLanguage, retryLanguage, documentChanged, setLanguageEffectsHandler, formatDocument, setFormatHandler }
+  return { tabs, activeId, workspaceVersion, open, close, select, selectIndex, cycle, setTitle, session, saveSession, hasContent, setLanguage, retryLanguage, documentChanged, setLanguageEffectsHandler, formatDocument, setFormatHandler, cancelFormatting, snapshot, restore, rename, closedTabs, recover, deleteClosed, setScrollTop, setChangeHandler }
 }
 
 export type Tabs = ReturnType<typeof createTabs>

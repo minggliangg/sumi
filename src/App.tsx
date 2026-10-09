@@ -1,4 +1,7 @@
-import { createSignal, onCleanup, onMount } from 'solid-js'
+import Recovery from './components/Recovery.tsx'
+import { createRecovery } from './storage/recovery.ts'
+import { exportFilename, languageForFilename, readImportedFile } from './editor/files.ts'
+import { createSignal, onCleanup, onMount, Show } from 'solid-js'
 import Editor, { type Cursor } from './components/Editor.tsx'
 import TabBar, { type TabLayout } from './components/TabBar.tsx'
 import StatusBar from './components/StatusBar.tsx'
@@ -18,13 +21,45 @@ function loadLayout(): TabLayout {
 }
 
 export default function App() {
-  const tabs = createTabs((state) =>
-    state.doc.length === 0 || window.confirm('Close this tab and discard its text? Text is not saved yet.'),
-  )
+  const model = createTabs()
+  const persistence = createRecovery(model)
+  const tabs = { ...model, ...persistence }
+  const [recoveryOpen, setRecoveryOpen] = createSignal(false)
+  const [fileError, setFileError] = createSignal('')
+  let importInput!: HTMLInputElement
+  const exportUrls = new Map<string, ReturnType<typeof setTimeout>>()
+  let disposed = false
+  let importing: Promise<void> = Promise.resolve()
+  async function importFiles(files: readonly File[]) {
+    setFileError('')
+    for (const file of Array.from(files)) {
+      try {
+        const text = await readImportedFile(file)
+        if (disposed) return
+        const id = tabs.open(text, file.name)
+        const language = languageForFilename(file.name)
+        if (language) tabs.setLanguage(id, language)
+      } catch (error) { setFileError(error instanceof Error ? error.message : 'File could not be imported.') }
+    }
+    importInput.value = ''
+  }
+  function exportFile() {
+    const tab = tabs.tabs.find(tab => tab.id === tabs.activeId())
+    const session = tabs.session(tabs.activeId())
+    if (!tab || !session) return
+    const url = URL.createObjectURL(new Blob([session.state.doc.toString()], { type: 'text/plain;charset=utf-8' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = exportFilename(tab.title, tab.filename, tab.resolvedLanguage)
+    document.body.append(anchor)
+    anchor.click()
+    anchor.remove()
+    exportUrls.set(url, setTimeout(() => { URL.revokeObjectURL(url); exportUrls.delete(url) }, 60000))
+  }
   const [cursor, setCursor] = createSignal<Cursor>({ line: 1, col: 1, selected: 0 })
   const [layout, setLayout] = createSignal<TabLayout>(loadLayout())
   const [showShortcuts, setShowShortcuts] = createSignal(false)
-  const update = createAppUpdate(tabs.hasContent)
+  const update = createAppUpdate(async () => { await importing; tabs.cancelFormatting(); await tabs.flush() })
 
   function toggleLayout() {
     const next = layout() === 'horizontal' ? 'vertical' : 'horizontal'
@@ -38,7 +73,7 @@ export default function App() {
 
   // Capture app shortcuts before CodeMirror handles editing commands.
   function onKeyDown(e: KeyboardEvent) {
-    if (update.updating()) {
+    if (!tabs.ready() || update.updating()) {
       e.preventDefault()
       e.stopPropagation()
       return
@@ -62,7 +97,7 @@ export default function App() {
   }
 
   function onBeforeUnload(e: BeforeUnloadEvent) {
-    if (update.updating() || !tabs.hasContent()) return
+    if (!tabs.hasUnsaved()) return
     e.preventDefault()
     e.returnValue = ''
   }
@@ -72,6 +107,8 @@ export default function App() {
     window.addEventListener('beforeunload', onBeforeUnload)
   })
   onCleanup(() => {
+    disposed = true
+    for (const [url, timer] of exportUrls) { clearTimeout(timer); URL.revokeObjectURL(url) }
     window.removeEventListener('keydown', onKeyDown, { capture: true })
     window.removeEventListener('beforeunload', onBeforeUnload)
   })
@@ -84,8 +121,24 @@ export default function App() {
         onToggleLayout={toggleLayout}
         onShowShortcuts={() => setShowShortcuts(true)}
         shortcutsOpen={showShortcuts()}
+        onRename={(id) => {
+          const tab = tabs.tabs.find(tab => tab.id === id)
+          if (!tab) return
+          const name = window.prompt('Name this draft (leave blank to use its first line)', tab.filename ?? tab.title)
+          if (name !== null) tabs.rename(id, name)
+        }}
+        onImport={() => importInput.click()}
+        onExport={exportFile}
+        onRecovery={() => setRecoveryOpen(true)}
+        recoveryOpen={recoveryOpen()}
+        actionsDisabled={!tabs.ready()}
       />
-      <Editor tabs={tabs} onCursor={setCursor} />
+      <input ref={importInput} type="file" aria-label="Import files" multiple hidden onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); importing = importing.then(() => importFiles(files)) }} />
+      <Show when={tabs.ready()} fallback={<div class="editor" role="status">Restoring drafts…</div>}>
+        <Editor tabs={tabs} onCursor={setCursor} />
+      </Show>
+      <Show when={fileError()}><div class="file-error" role="status">{fileError()}</div></Show>
+      <Recovery tabs={tabs} open={recoveryOpen()} onClose={() => setRecoveryOpen(false)} />
       <StatusBar cursor={cursor()} update={update} tabs={tabs} />
       <ShortcutHelp open={showShortcuts()} onClose={() => setShowShortcuts(false)} />
     </main>

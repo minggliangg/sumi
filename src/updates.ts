@@ -1,7 +1,7 @@
 import { createSignal, onCleanup, onMount } from 'solid-js'
 import { registerSW } from 'virtual:pwa-register'
 
-export function createAppUpdate(hasContent: () => boolean) {
+export function createAppUpdate(preserve: () => Promise<void>) {
   const [available, setAvailable] = createSignal(false)
   const [updating, setUpdating] = createSignal(false)
   const [error, setError] = createSignal('')
@@ -10,6 +10,7 @@ export function createAppUpdate(hasContent: () => boolean) {
   let readyToReload = false
   let hadController = false
   let reloadStarted = false
+  let preserved = false
   let disposed = false
   let checking = false
   let timeout: ReturnType<typeof setTimeout> | undefined
@@ -18,7 +19,12 @@ export function createAppUpdate(hasContent: () => boolean) {
     if (reloadStarted) return
     reloadStarted = true
     clearTimeout(timeout)
-    window.location.reload()
+    void preserve().then(() => window.location.reload(), () => {
+      reloadStarted = false
+      preserved = false
+      setUpdating(false)
+      setError('Update paused because drafts could not be saved. Export a copy or retry saving first.')
+    })
   }
 
   function onReadyToReload() {
@@ -27,7 +33,7 @@ export function createAppUpdate(hasContent: () => boolean) {
     setAvailable(true)
     // Another window may activate the worker. Never reload this window
     // unless its user has explicitly approved updating its documents.
-    if (updating()) reload()
+    if (updating() && preserved) reload()
   }
 
   function onControllerChange() {
@@ -39,6 +45,7 @@ export function createAppUpdate(hasContent: () => boolean) {
   function fail() {
     clearTimeout(timeout)
     setUpdating(false)
+    preserved = false
     setError('Update could not finish. Please try again.')
   }
 
@@ -60,11 +67,14 @@ export function createAppUpdate(hasContent: () => boolean) {
 
   async function apply() {
     if (!available() || updating() || !activate) return
-    if (hasContent() && !window.confirm(
-      'Update sumi and discard the text in all tabs in this window? Text is not saved yet. Copy anything you want to keep before continuing.',
-    )) return
     setError('')
     setUpdating(true)
+    try { await preserve() } catch {
+      setUpdating(false)
+      setError('Update paused because drafts could not be saved. Export a copy or retry saving first.')
+      return
+    }
+    preserved = true
     if (readyToReload && !registration?.waiting) {
       reload()
       return

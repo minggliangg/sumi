@@ -33,7 +33,7 @@ export default function Editor(props: Props) {
       dispatchTransactions(trs, view) {
         const id = tabs.activeId()
         view.update(trs)
-        tabs.saveSession(id, { state: view.state })
+        tabs.saveSession(id, { state: view.state, scrollTop: view.scrollDOM.scrollTop })
         if (trs.some((tr) => tr.docChanged)) {
           tabs.setTitle(id, titleFor(view.state.doc.line(1).text))
           tabs.documentChanged(id, trs)
@@ -57,17 +57,34 @@ export default function Editor(props: Props) {
     })
 
     let shownId = tabs.activeId()
+    let shownVersion = tabs.workspaceVersion()
+    function restoreScroll(id: string) {
+      const top = tabs.session(id)?.scrollTop ?? 0
+      const version = tabs.workspaceVersion()
+      // Wait for font metrics and CodeMirror's first measurement before restoring.
+      void document.fonts.ready.then(() => {
+        if (disposed || tabs.activeId() !== id || tabs.workspaceVersion() !== version) return
+        view.requestMeasure({ read: () => top, write: value => { if (!disposed && tabs.activeId() === id && tabs.workspaceVersion() === version) view.scrollDOM.scrollTop = value } })
+      })
+    }
+    let disposed = false
+    function onScroll() { tabs.setScrollTop(shownId, view.scrollDOM.scrollTop) }
+    view.scrollDOM.addEventListener('scroll', onScroll)
+    restoreScroll(shownId)
 
     createEffect(
-      on(tabs.activeId, (next) => {
-        if (next === shownId) return
-        tabs.saveSession(shownId, { state: view.state, scroll: view.scrollSnapshot() })
+      on(() => [tabs.activeId(), tabs.workspaceVersion()] as const, ([next, version]) => {
+        const restored = version !== shownVersion
+        if (next === shownId && !restored) return
+        if (!restored) tabs.saveSession(shownId, { state: view.state, scroll: view.scrollSnapshot(), scrollTop: view.scrollDOM.scrollTop })
         shownId = next
+        shownVersion = version
         const session = tabs.session(next)
         if (!session) return
         const tabHasFocus = !!document.activeElement?.closest('.tab')
         view.setState(session.state)
         if (session.scroll) view.dispatch({ effects: session.scroll })
+        else restoreScroll(next)
         props.onCursor(cursorOf(view.state))
         if (!tabHasFocus) view.focus()
       }),
@@ -75,7 +92,7 @@ export default function Editor(props: Props) {
 
     props.onCursor(cursorOf(view.state))
     view.focus()
-    onCleanup(() => { tabs.setLanguageEffectsHandler(); tabs.setFormatHandler(); view.destroy() })
+    onCleanup(() => { disposed = true; view.scrollDOM.removeEventListener('scroll', onScroll); tabs.setLanguageEffectsHandler(); tabs.setFormatHandler(); view.destroy() })
   })
 
   return (

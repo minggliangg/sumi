@@ -1,0 +1,48 @@
+import { expect, test } from '@playwright/test'
+
+test('retry rebuild preserves existing scroll and keeps a locally edited active tab usable', async ({ page }) => {
+  page.on('dialog', dialog => dialog.accept())
+  await page.setViewportSize({ width: 1000, height: 600 })
+  await page.goto('./')
+  const storage = page.locator('[data-storage-status]')
+  const editor = page.getByRole('textbox', { name: 'Text editor' })
+  await expect(storage).toHaveAttribute('data-storage-status', 'saved')
+  await page.evaluate(() => document.fonts.ready)
+  await editor.fill(Array.from({ length: 120 }, (_, i) => `saved line ${i + 1}`).join('\n'))
+  const scroller = page.locator('.cm-scroller')
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  await scroller.evaluate(element => { element.scrollTop = 500 })
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+  const top = await scroller.evaluate(element => Math.round(element.scrollTop))
+  expect(top).toBeGreaterThan(400)
+  await expect(storage).toHaveAttribute('data-storage-status', 'saved')
+  await page.getByRole('button', { name: 'New tab', exact: true }).click()
+  await editor.fill('another saved draft')
+  await expect(storage).toHaveAttribute('data-storage-status', 'saved')
+
+  await page.addInitScript(() => {
+    const original = IDBDatabase.prototype.transaction
+    Object.defineProperty(window, '__restoreTransactions', { value: () => { IDBDatabase.prototype.transaction = original }, configurable: true })
+    IDBDatabase.prototype.transaction = function (...args: Parameters<IDBDatabase['transaction']>) {
+      if (args[1] === 'readonly') throw new DOMException('Storage unavailable', 'UnknownError')
+      return original.apply(this, args)
+    }
+  })
+  await page.reload()
+  await expect(storage).toHaveAttribute('data-storage-status', 'error')
+  await editor.fill('const local={value:1};')
+  await page.getByRole('button', { name: 'Choose language', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Language', exact: true }).getByRole('button', { name: 'JavaScript', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Choose language', exact: true })).toHaveAttribute('data-language-status', 'ready')
+  await page.evaluate(() => (window as unknown as { __restoreTransactions(): void }).__restoreTransactions())
+  await page.getByRole('button', { name: 'Retry saving', exact: true }).click()
+  await expect(storage).toHaveAttribute('data-storage-status', 'saved')
+  await expect(page.getByRole('tab')).toHaveCount(3)
+  await expect(editor).toHaveText('const local={value:1};')
+  await page.getByRole('button', { name: 'Format document', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Format document', exact: true })).toHaveAttribute('data-format-status', 'idle')
+  await expect(editor).toContainText('const local = { value: 1 };')
+  await page.getByRole('tab', { name: 'saved line 1', exact: true }).click()
+  await expect.poll(() => scroller.evaluate(element => Math.round(element.scrollTop))).toBe(top)
+  await expect(storage).toHaveAttribute('data-storage-status', 'saved')
+})

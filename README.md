@@ -59,7 +59,7 @@ Packs download when requested and are cached for offline use. On the first visit
 
 Production builds emit `dist/language-bundle-report.json` with minified and gzip sizes for the initial JavaScript, each language and formatter dependency closure, and their combined payloads. These code sizes exclude browser cache overhead and retained releases, so they are not installed-storage measurements.
 
-Language changes preserve text, selection, undo history and scroll position. Language choices, like documents, currently live only in memory and reset on reload. File import and filename-extension detection remain future work.
+Language changes preserve text, selection, undo history and scroll position. Documents, language choices, selection and scroll position recover from IndexedDB after reload; undo history starts fresh. Imported filenames provide extension-based detection before content heuristics.
 
 ## Formatting
 
@@ -67,17 +67,25 @@ Use **Format document** beside the language picker or **Ctrl+Shift+F** to format
 
 Formatting runs locally in a worker and downloads its formatter assets only when requested. Successfully requested assets are cached for offline use; the first download requires connectivity. Python formatting downloads a roughly 10.4 MiB Ruff WebAssembly runtime (about 3.7 MiB gzip); all formatter assets together are about 12.7 MiB raw / 4.35 MiB gzip in the current build. Highlighting Python does not download this runtime. Browser cache storage and retained releases can add overhead. Syntax errors or unavailable assets leave the document unchanged and show a short error. Retry after correcting the source or reconnecting. A document edited or given a different language while formatting is in progress keeps the newer state; run Format document again.
 
-Formatting preserves selection and scroll position and creates one undoable edit. An unchanged result adds no undo history. Switching tabs during formatting applies a completed result only to its original tab; closing that tab discards the result. Format settings are currently fixed: two-space indentation, 80-column wrapping, double quotes and semicolons for Prettier-supported languages; Python uses Ruff with four-space indentation, 88-column wrapping and double quotes; SQL uses two-space indentation and uppercase keywords. Markdown embedded code blocks are not reformatted. Documents and language choices still live only in memory.
+Formatting preserves selection and scroll position and creates one undoable edit. An unchanged result adds no undo history. Switching tabs during formatting applies a completed result only to its original tab; closing that tab discards the result. Format settings are currently fixed: two-space indentation, 80-column wrapping, double quotes and semicolons for Prettier-supported languages; Python uses Ruff with four-space indentation, 88-column wrapping and double quotes; SQL uses two-space indentation and uppercase keywords. Markdown embedded code blocks are not reformatted. Documents and language choices are automatically saved for recovery.
 
 ## GitHub Pages
 
 The public site is hosted at [minggliangg.github.io/sumi](https://minggliangg.github.io/sumi/).
 Pushes to `main` run the browser tests, build with base path `/sumi/`, and deploy through `.github/workflows/pages.yml`. Pull requests run the same checks without publishing. Repository Settings → Pages must use **GitHub Actions** as the source.
 
-Tabs currently live in memory. Copy out text you want to keep before closing a tab or leaving the app. Closing a populated tab asks for confirmation. The app asks the browser to warn before leaving when any tab contains text; browser and mobile lifecycle behavior can limit that warning.
+Documents save automatically to IndexedDB after a short pause. The status reports Saving, Saved or a storage error with Retry. Reload restores tab order, active document, language choices, selection and scroll position; undo history is not saved. A leaving warning remains while changes are pending or saving has failed. Browser storage can be evicted or cleared, so export files you need to retain independently.
 
-When an update is downloaded, an **Update available** button appears beside the cursor position. Updates are checked on launch, when the app returns to the foreground, and when connectivity returns. Pressing the button reloads this window; if any of its tabs contains text, confirmation warns that all text in that window will be discarded. Cancel keeps the session intact. Other windows running this version keep their sessions and can update separately. Otherwise, a waiting update activates after all app windows close. There is no automatic document persistence.
+Each app window owns an independent workspace. Reload recovers that window; a later launch can recover an available saved workspace. Storage revisions and workspace locks protect against two windows overwriting one another. A storage failure leaves writing in memory and makes the failure visible; a failed read does not replace the saved workspace. If competing saves conflict, Retry saving preserves this window’s drafts in a separate workspace without replacing the other window’s saved text.
 
-For an installed app running an older release without this button, copy out your text, open it while online to download the update, then fully close the app and any browser tabs showing sumi and reopen it. Older releases may reload when another window activates an update, so close those windows before using the new button.
+Double-click a tab or press F2 while its tab control is focused to give a draft an optional name. Cancel preserves the current name; an empty name restores the title derived from the first line. Names recover with drafts, and export adds the selected language extension when a name has no extension.
+
+**Open file** copies a selected UTF-8 text file into a named tab and detects supported filename extensions. **Export file** downloads the active document using its imported filename, or a name derived from the title and language. These controls use portable file input and download APIs; they do not write back to the original file or retain filesystem access.
+
+Closing a populated tab retains it under **Recently closed**. The newest twenty nonempty closed drafts are kept for recovery. Restore reopens a draft; Delete asks before permanently removing that saved draft. Empty tabs are not retained.
+
+When an update is downloaded, an **Update available** button appears beside the cursor position. Updates are checked on launch, when the app returns to the foreground, and when connectivity returns. Pressing the button saves this workspace before reloading it; a storage failure leaves the session intact and reports an error. Other app windows keep their own sessions and can update separately. There is no automatic reload while editing.
+
+For an installed app running an older release without this button, export or copy your text before fully closing the app and any browser tabs showing sumi. and reopening it. Older releases do not have the current recovery and update protections.
 
 Tab controls support Arrow keys in the bar's orientation, Home/End, and Delete to close the focused tab. CodeMirror's Escape then Tab lets keyboard focus leave the editor when Tab is used for indentation.

@@ -11,7 +11,7 @@
 - Keep large CodeMirror states and session data outside Solid's reactive store. Keep only renderable tab metadata in the store.
 - Create DOM-bound resources within Solid lifecycle owners and clean them up with `onCleanup`. Destroy the CodeMirror view when its component is disposed, and remove global event listeners when their owner is disposed.
 - Do not enable automatic PWA updates that reload the app while documents exist only in memory. Coordinate service-worker activation with a safe document-preservation strategy first.
-- Document persistence and broader install icon support are not implemented; do not describe them as implemented until they are.
+- IndexedDB document recovery, file input import/download export and recently closed draft recovery are implemented. Undo history remains session-only; direct filesystem write-back is not implemented.
 
 ## Checks and claims
 

@@ -18,16 +18,22 @@ test.beforeEach(async ({ page }) => {
   await page.goto('./')
 })
 
-test('cancelling a close keeps the document and its active tab', async ({ page }) => {
+test('closing retains a draft and permanent deletion requires confirmation', async ({ page }) => {
   await write(page, 'keep this document')
+  await page.getByRole('button', { name: 'Close keep this document', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: 'Text editor' })).toHaveText('')
+  await page.getByRole('button', { name: 'Recently closed', exact: true }).click()
+  const recovery = page.getByRole('dialog', { name: 'Recently closed', exact: true })
   page.removeAllListeners('dialog')
   page.once('dialog', async (dialog) => {
     expect(dialog.type()).toBe('confirm')
     await dialog.dismiss()
   })
-  await page.getByRole('button', { name: 'Close keep this document', exact: true }).click()
-  await expect(page.getByRole('tab')).toHaveText('keep this document')
-  await expect(page.getByRole('textbox')).toHaveText('keep this document')
+  await recovery.getByRole('button', { name: 'Delete keep this document', exact: true }).click()
+  await expect(recovery.getByRole('button', { name: 'Restore keep this document', exact: true })).toBeVisible()
+  await recovery.getByRole('button', { name: 'Restore keep this document', exact: true }).click()
+  await expect(page.getByRole('tab', { name: 'keep this document', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('textbox', { name: 'Text editor' })).toHaveText('keep this document')
 })
 
 test('Pages paths, app name and offline shell work', async ({ page, context }) => {
@@ -89,13 +95,14 @@ test('Unicode titles do not split supplementary characters', async ({ page }) =>
   await expect(page.getByRole('tab')).toHaveText(`${'a'.repeat(26)}😀…`)
 })
 
-test('leaving warns for text in active and inactive tabs, but not empty tabs', async ({ page }) => {
+test('leaving warns for pending changes and clears the warning after saving', async ({ page }) => {
+  await expect(page.locator('[data-storage-status]')).toHaveAttribute('data-storage-status', 'saved')
   expect(await unloadIsPrevented(page)).toBe(false)
+  await page.clock.install()
   await write(page, 'keep this')
   expect(await unloadIsPrevented(page)).toBe(true)
-  await page.getByRole('button', { name: 'New tab', exact: true }).click()
-  expect(await unloadIsPrevented(page)).toBe(true)
-  await page.getByRole('button', { name: 'Close keep this', exact: true }).click()
+  await page.clock.fastForward(1000)
+  await expect(page.locator('[data-storage-status]')).toHaveAttribute('data-storage-status', 'saved')
   expect(await unloadIsPrevented(page)).toBe(false)
 })
 
@@ -111,7 +118,7 @@ test('Alt shortcuts ignore repeats and composition', async ({ page }) => {
   await expect(page.getByRole('tab')).toHaveCount(1)
 })
 
-test('Ctrl+Shift tab actions preserve documents, focus, and close confirmation', async ({ page }) => {
+test('Ctrl+Shift tab actions preserve documents and focus and retain closed drafts', async ({ page }) => {
   const editor = page.getByRole('textbox', { name: 'Text editor' })
   await write(page, 'first')
   await page.keyboard.press('Control+Shift+Enter')
@@ -133,12 +140,6 @@ test('Ctrl+Shift tab actions preserve documents, focus, and close confirmation',
   await expect(page.locator('.status')).toContainText('selected')
   await page.keyboard.press('Control+Shift+KeyL')
   await expect(page.locator('.app')).toHaveAttribute('data-tab-layout', 'vertical')
-  page.removeAllListeners('dialog')
-  page.once('dialog', (dialog) => dialog.dismiss())
-  await page.keyboard.press('Control+Shift+Backspace')
-  await expect(page.getByRole('tab')).toHaveCount(2)
-  await expect(editor).toHaveText('second')
-  page.once('dialog', (dialog) => dialog.accept())
   await page.keyboard.press('Control+Shift+Backspace')
   await expect(page.getByRole('tab')).toHaveCount(1)
   await expect(editor).toHaveText('first')

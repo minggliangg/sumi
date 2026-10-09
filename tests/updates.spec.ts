@@ -65,19 +65,20 @@ async function acceptUpdate(page: Page) {
   ])
 }
 
-test('update waits for consent, warns about inactive text, and leaves other windows intact', async ({ browser }) => {
+test('approved update restores this workspace and leaves other windows intact', async ({ browser }) => {
   const server = await updateServer()
   const context = await browser.newContext({ viewport: { width: 800, height: 1280 }, hasTouch: true, isMobile: true })
   try {
     const first = await context.newPage()
     await openApp(first, server.url)
     const firstLoads = await loadCount(first)
-    await first.getByRole('textbox').fill('text in an inactive tab')
+    await first.getByRole('textbox', { name: 'Text editor' }).fill('text in an inactive tab')
     await first.getByRole('button', { name: 'New tab', exact: true }).tap()
+    await first.getByRole('textbox', { name: 'Text editor' }).fill('active document')
     const other = await context.newPage()
     await openApp(other, server.url)
     const otherLoads = await loadCount(other)
-    await other.getByRole('textbox').fill('keep this other window')
+    await other.getByRole('textbox', { name: 'Text editor' }).fill('keep this other window')
     await other.getByRole('button', { name: 'Choose language', exact: true }).click()
     await other.getByRole('dialog', { name: 'Language', exact: true }).getByRole('button', { name: 'Python', exact: true }).click()
     await expect(other.getByRole('button', { name: 'Choose language', exact: true })).toHaveAttribute('data-language-status', 'ready')
@@ -88,38 +89,22 @@ test('update waits for consent, warns about inactive text, and leaves other wind
     expect(await loadCount(other)).toBe(otherLoads)
     await first.bringToFront()
     await first.screenshot({ path: 'test-results/update-available-tablet.png' })
-    first.removeAllListeners('dialog')
-    first.once('dialog', async (dialog) => {
-      expect(dialog.type()).toBe('confirm')
-      expect(dialog.message()).toContain('all tabs in this window')
-      await dialog.dismiss()
-    })
-    await first.getByRole('button', { name: 'Update available' }).tap()
-    await expect(first.getByRole('tab')).toHaveCount(2)
-    expect(await first.evaluate(async () => !!(await navigator.serviceWorker.ready).waiting)).toBe(true)
-    await first.getByRole('tab', { name: 'text in an inactive tab' }).tap()
-    await expect(first.getByRole('textbox')).toHaveText('text in an inactive tab')
-    first.once('dialog', (dialog) => dialog.accept())
     await acceptUpdate(first)
     expect(await loadCount(first)).toBe(firstLoads + 1)
-    await expect(first.getByRole('tab')).toHaveCount(1)
-    await expect(first.getByRole('textbox')).toHaveText('')
+    await expect(first.getByRole('tab')).toHaveCount(2)
+    await expect(first.getByRole('textbox', { name: 'Text editor' })).toHaveText('active document')
+    await first.getByRole('tab', { name: 'text in an inactive tab', exact: true }).tap()
+    await expect(first.getByRole('textbox', { name: 'Text editor' })).toHaveText('text in an inactive tab')
     await expect(first.getByRole('button', { name: 'Update available' })).toHaveCount(0)
     expect(await loadCount(other)).toBe(otherLoads)
-    await expect(other.getByRole('textbox')).toHaveText('keep this other window')
-    // A newer update can arrive before the other window has reloaded. It must
-    // activate that waiting version, rather than reload into the earlier one.
+    await expect(other.getByRole('textbox', { name: 'Text editor' })).toHaveText('keep this other window')
     server.next()
     await installUpdate(other)
     await other.bringToFront()
-    other.removeAllListeners('dialog')
-    other.once('dialog', (dialog) => dialog.dismiss())
-    await other.getByRole('button', { name: 'Update available' }).tap()
-    await expect(other.getByRole('textbox')).toHaveText('keep this other window')
-    other.once('dialog', (dialog) => dialog.accept())
     await acceptUpdate(other)
     expect(await loadCount(other)).toBe(otherLoads + 1)
-    await expect(other.getByRole('textbox')).toHaveText('')
+    await expect(other.getByRole('textbox', { name: 'Text editor' })).toHaveText('keep this other window')
+    await expect(other.getByRole('button', { name: 'Choose language', exact: true })).toHaveAttribute('data-language-mode', 'python')
     expect(await other.evaluate(async () => (await navigator.serviceWorker.ready).waiting)).toBeNull()
     expect(await loadCount(first)).toBe(firstLoads + 1)
   } finally {
@@ -128,7 +113,7 @@ test('update waits for consent, warns about inactive text, and leaves other wind
   }
 })
 
-test('foreground checking discovers an update and empty tabs reload without a discard prompt', async ({ browser }) => {
+test('foreground checking discovers an update and reloads without a discard prompt', async ({ browser }) => {
   const server = await updateServer()
   const context = await browser.newContext({ viewport: { width: 360, height: 740 } })
   try {
@@ -163,6 +148,7 @@ test('stalled activation restores editing and requires fresh approval', async ({
     await openApp(page, server.url)
     const initialLoads = await loadCount(page)
     await page.getByRole('textbox').fill('preserve until update finishes')
+    await expect(page.locator('[data-storage-status]')).toHaveAttribute('data-storage-status', 'saved')
     server.next(true)
     await installUpdate(page)
     await page.clock.install()
@@ -170,7 +156,7 @@ test('stalled activation restores editing and requires fresh approval', async ({
     await expect(page.getByRole('button', { name: 'Updating…' })).toBeDisabled()
     await expect(page.locator('.app')).toHaveAttribute('inert', '')
     await page.clock.fastForward(15001)
-    await expect(page.getByRole('status')).toContainText('Please try again')
+    await expect(page.locator('.status')).toContainText('Please try again')
     await expect(page.locator('.app')).not.toHaveAttribute('inert', '')
     await expect(page.getByRole('textbox')).toHaveText('preserve until update finishes')
     // Activation arriving after timeout must not trigger a late reload.
@@ -187,7 +173,43 @@ test('stalled activation restores editing and requires fresh approval', async ({
       const event = new Event('beforeunload', { cancelable: true })
       window.dispatchEvent(event)
       return event.defaultPrevented
-    })).toBe(true)
+    })).toBe(false)
+  } finally {
+    await context.close()
+    await server.close()
+  }
+})
+
+test('update storage failure preserves text and a later retry restores the saved workspace', async ({ browser }) => {
+  const server = await updateServer()
+  const context = await browser.newContext()
+  try {
+    const page = await context.newPage()
+    await openApp(page, server.url)
+    await expect(page.locator('[data-storage-status]')).toHaveAttribute('data-storage-status', 'saved')
+    const initialLoads = await loadCount(page)
+    server.next()
+    await installUpdate(page)
+    await page.evaluate(() => {
+      const original = IDBDatabase.prototype.transaction
+      Object.defineProperty(window, '__restoreTransactions', { value: () => { IDBDatabase.prototype.transaction = original }, configurable: true })
+      IDBDatabase.prototype.transaction = function (...args: Parameters<IDBDatabase['transaction']>) {
+        if (args[1] === 'readwrite') throw new DOMException('Storage quota exceeded', 'QuotaExceededError')
+        return original.apply(this, args)
+      }
+    })
+    await page.getByRole('textbox', { name: 'Text editor' }).fill('preserve on update failure')
+    await page.getByRole('button', { name: 'Update available', exact: true }).click()
+    await expect(page.locator('[data-storage-status]')).toHaveAttribute('data-storage-status', 'error')
+    await expect(page.locator('.app')).not.toHaveAttribute('inert', '')
+    await expect(page.getByRole('textbox', { name: 'Text editor' })).toHaveText('preserve on update failure')
+    expect(await loadCount(page)).toBe(initialLoads)
+    await page.evaluate(() => (window as unknown as { __restoreTransactions(): void }).__restoreTransactions())
+    await page.getByRole('button', { name: 'Retry saving', exact: true }).click()
+    await expect(page.locator('[data-storage-status]')).toHaveAttribute('data-storage-status', 'saved')
+    await acceptUpdate(page)
+    expect(await loadCount(page)).toBe(initialLoads + 1)
+    await expect(page.getByRole('textbox', { name: 'Text editor' })).toHaveText('preserve on update failure')
   } finally {
     await context.close()
     await server.close()
