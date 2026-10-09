@@ -1,7 +1,7 @@
 import type { StoredDocument, StoredWorkspace } from '../storage/workspace.ts'
 import { batch, createSignal, onCleanup } from 'solid-js'
 import { createStore } from 'solid-js/store'
-import { Transaction as EditorTransaction, type EditorState, type StateEffect, type Transaction, type Extension } from '@codemirror/state'
+import { Transaction as EditorTransaction, type EditorState, type StateEffect, type Text as EditorText, type Transaction, type Extension } from '@codemirror/state'
 import { isolateHistory } from '@codemirror/commands'
 import { requestFormat, type FormatJob } from '../editor/formatting.ts'
 import { createEditorState, languageCompartment } from '../editor/setup.ts'
@@ -26,6 +26,28 @@ interface TabSession {
   scrollTop?: number
 }
 
+// What recovery persists for one document. Content is an immutable CodeMirror
+// document, so an unchanged document keeps the same object and is never re-serialized.
+export interface DocumentSnapshot {
+  id: string
+  content: EditorText
+  languageMode: LanguageMode
+  selection: { anchor: number; head: number }
+  scrollTop: number
+  filename?: string
+  closedAt?: number
+}
+
+export interface TabsSnapshot {
+  documents: DocumentSnapshot[]
+  activeId: string
+  closed: DocumentSnapshot[]
+}
+
+function documentFromStored({ text, ...document }: StoredDocument): DocumentSnapshot {
+  return { ...document, content: createEditorState(text).doc }
+}
+
 
 const UNTITLED = 'untitled'
 const MAX_TITLE = 28
@@ -43,7 +65,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
   const [workspaceVersion, setWorkspaceVersion] = createSignal(0)
   const sessions = new Map<string, TabSession>()
   const [closedTabs, setClosedTabs] = createSignal<{ id: string; title: string; closedAt: number }[]>([])
-  const closedDocuments = new Map<string, StoredDocument>()
+  const closedDocuments = new Map<string, DocumentSnapshot>()
   let onChange: (() => void) | undefined
   const changed = () => onChange?.()
   function setChangeHandler(handler?: () => void) { onChange = handler }
@@ -215,7 +237,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     applyToView = undefined
   })
 
-  function open(doc = '', filename?: string, restored?: StoredDocument) {
+  function open(doc = '', filename?: string, restored?: Pick<StoredDocument, 'id' | 'languageMode' | 'selection' | 'scrollTop'>) {
     const id = restored?.id ?? crypto.randomUUID()
     let state = createEditorState(doc)
     if (restored) state = state.update({ selection: restored.selection }).state
@@ -234,10 +256,10 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     const current = sessions.get(id)
     if (current && !beforeClose(current.state)) return
     if (current && current.state.doc.length) {
-      const document = storedDocument(id)
-      document.closedAt = Date.now()
+      const closedAt = Date.now()
+      const document = { ...documentSnapshot(id), closedAt }
       closedDocuments.set(id, document)
-      const items = [{ id, title: tabs[index].title, closedAt: document.closedAt }, ...closedTabs().filter(tab => tab.id !== id)].slice(0, 20)
+      const items = [{ id, title: tabs[index].title, closedAt }, ...closedTabs().filter(tab => tab.id !== id)].slice(0, 20)
       setClosedTabs(items)
       for (const key of closedDocuments.keys()) if (!items.some(tab => tab.id === key)) closedDocuments.delete(key)
     }
@@ -297,15 +319,15 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     return Array.from(sessions.values()).some(({ state }) => state.doc.length > 0)
   }
 
-  function storedDocument(id: string): StoredDocument {
+  function documentSnapshot(id: string): DocumentSnapshot {
     const current = sessions.get(id)!
     const tab = tabs.find(tab => tab.id === id)!
-    return { id, text: current.state.doc.toString(), languageMode: tab.languageMode,
+    return { id, content: current.state.doc, languageMode: tab.languageMode,
       selection: { anchor: current.state.selection.main.anchor, head: current.state.selection.main.head },
       scrollTop: current.scrollTop ?? 0, filename: tab.filename }
   }
-  function snapshot(): Pick<StoredWorkspace, 'documents' | 'activeId' | 'closed'> {
-    return { documents: tabs.map(tab => storedDocument(tab.id)), activeId: activeId(), closed: closedTabs().map(tab => closedDocuments.get(tab.id)!) }
+  function snapshot(): TabsSnapshot {
+    return { documents: tabs.map(tab => documentSnapshot(tab.id)), activeId: activeId(), closed: closedTabs().map(tab => closedDocuments.get(tab.id)!) }
   }
   function restore(snapshot: Pick<StoredWorkspace, 'documents' | 'activeId' | 'closed'>) {
     const handler = onChange
@@ -322,7 +344,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
         for (const document of snapshot.documents) open(document.text, document.filename, document)
         if (!tabs.length) open()
         select(snapshot.activeId)
-        for (const document of snapshot.closed.slice(0, 20)) closedDocuments.set(document.id, document)
+        for (const document of snapshot.closed.slice(0, 20)) closedDocuments.set(document.id, documentFromStored(document))
         setClosedTabs(snapshot.closed.slice(0, 20).map(document => ({ id: document.id, title: document.filename ?? titleFor(document.text.split('\n', 1)[0]!), closedAt: document.closedAt ?? Date.now() })))
         // A retry can preserve the same active ID while replacing its state.
         // The mounted view must still install the reconstructed EditorState.
@@ -334,7 +356,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     const document = closedDocuments.get(id)
     if (!document) return
     deleteClosed(id)
-    open(document.text, document.filename, document)
+    open(document.content.toString(), document.filename, document)
   }
   function deleteClosed(id: string) {
     closedDocuments.delete(id)
