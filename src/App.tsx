@@ -56,6 +56,7 @@ export default function App() {
       case 'next': tabs.cycle(1); break
       case 'jump': tabs.selectIndex(shortcut.index); break
       case 'layout': toggleLayout(); break
+      case 'format': void tabs.formatDocument(tabs.activeId()); break
       case 'help': setShowShortcuts(true); break
     }
   }

@@ -8,15 +8,37 @@ import { VitePWA } from 'vite-plugin-pwa'
 const release = Date.now().toString(36)
 const languageManifest = `language-assets-${release}.json`
 const initialJavaScript = new Set<string>()
+interface WorkerChunk {
+  code: string
+  imports: string[]
+  modules: Record<string, unknown>
+  isEntry: boolean
+}
+const workerChunks = new Map<string, WorkerChunk>()
+
+function captureFormatterWorker(): Plugin {
+  return {
+    name: 'sumi-formatter-worker-graph',
+    generateBundle(_options, bundle) {
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type === 'chunk') workerChunks.set(chunk.fileName, chunk)
+      }
+    },
+  }
+}
 
 function languageBundleReport(): Plugin {
   return {
     name: 'sumi-language-bundle-report',
     generateBundle(_options, bundle) {
+      const chunkFor = (file: string) => {
+        const output = bundle[file]
+        return output?.type === 'chunk' ? output : workerChunks.get(file)
+      }
       const visit = (file: string, files: Set<string>) => {
         if (files.has(file)) return
-        const chunk = bundle[file]
-        if (!chunk || chunk.type !== 'chunk') return
+        const chunk = chunkFor(file)
+        if (!chunk) return
         files.add(file)
         chunk.imports.forEach((dependency) => visit(dependency, files))
       }
@@ -30,10 +52,12 @@ function languageBundleReport(): Plugin {
         let minifiedBytes = 0
         let gzipBytes = 0
         for (const file of files) {
-          const chunk = bundle[file]
-          if (chunk?.type !== 'chunk') continue
-          minifiedBytes += Buffer.byteLength(chunk.code)
-          gzipBytes += gzipSync(chunk.code).byteLength
+          const chunk = chunkFor(file)
+          const asset = bundle[file]
+          const bytes = chunk ? Buffer.from(chunk.code) : asset?.type === 'asset' ? Buffer.from(asset.source) : undefined
+          if (!bytes) continue
+          minifiedBytes += bytes.byteLength
+          gzipBytes += gzipSync(bytes).byteLength
         }
         return { minifiedBytes, gzipBytes, files: [...files].sort() }
       }
@@ -51,16 +75,44 @@ function languageBundleReport(): Plugin {
           languagePacks[name] = { ...size(files), entryFile: chunk.fileName }
         }
       }
-      const report = { initialJavaScript: size(initialJavaScript), languagePacks, combinedLanguages: size(combined) }
+      const formatterPacks: Record<string, ReturnType<typeof size> & { entryFile: string }> = {}
+      const combinedFormatters = new Set<string>()
+      const formatterFiles = new Map(workerChunks)
+      for (const chunk of Object.values(bundle)) if (chunk.type === 'chunk') formatterFiles.set(chunk.fileName, chunk)
+      for (const [file, chunk] of formatterFiles) {
+        const keys = new Set<string>()
+        if (workerChunks.has(file) && chunk.isEntry) keys.add('worker')
+        for (const moduleId of Object.keys(chunk.modules)) {
+          if (/\/prettier\/standalone\.(m?js)$/.test(moduleId)) keys.add('prettier')
+          const plugin = moduleId.match(/\/prettier\/plugins\/([^/.]+)\.(m?js)$/)?.[1]
+          if (plugin) keys.add(plugin)
+          if (/\/@astral-sh\/ruff-wasm(?:-web)?\//.test(moduleId)) keys.add('python')
+          if (moduleId.includes('/sql-formatter/')) keys.add('sql')
+        }
+        for (const key of keys) {
+          const files = new Set<string>()
+          visit(file, files)
+          initialJavaScript.forEach((initial) => files.delete(initial))
+          if (key === 'python') for (const asset of Object.values(bundle)) if (asset.fileName.endsWith('.wasm')) files.add(asset.fileName)
+          if (!files.size) continue
+          files.forEach((asset) => combinedFormatters.add(asset))
+          const previous = formatterPacks[key]
+          if (previous) previous.files.forEach((asset) => files.add(asset))
+          formatterPacks[key] = { ...size(files), entryFile: previous?.entryFile ?? file }
+        }
+      }
+      const report = { initialJavaScript: size(initialJavaScript), languagePacks, combinedLanguages: size(combined), formatterPacks, combinedFormatters: size(combinedFormatters) }
       this.emitFile({ type: 'asset', fileName: 'language-bundle-report.json', source: JSON.stringify(report, null, 2) })
-      this.emitFile({ type: 'asset', fileName: languageManifest, source: JSON.stringify({ languagePacks }) })
+      this.emitFile({ type: 'asset', fileName: languageManifest, source: JSON.stringify({ languagePacks, formatterPacks }) })
       console.info(`Language payload: ${report.combinedLanguages.minifiedBytes} bytes minified, ${report.combinedLanguages.gzipBytes} bytes gzip`)
+      console.info(`Formatter payload: ${report.combinedFormatters.minifiedBytes} bytes minified, ${report.combinedFormatters.gzipBytes} bytes gzip`)
     },
   }
 }
 
 export default defineConfig({
   define: { __SUMI_LANGUAGE_MANIFEST__: JSON.stringify(languageManifest) },
+  worker: { format: 'es', plugins: () => [captureFormatterWorker()] },
   plugins: [
     solid(),
     languageBundleReport(),
@@ -81,7 +133,7 @@ export default defineConfig({
           // Serialized into the worker; resolve the base from its own scope.
           urlPattern: ({ url, sameOrigin }) => {
             const scope = new URL((globalThis as unknown as { registration: { scope: string } }).registration.scope).pathname
-            return sameOrigin && ((url.pathname.startsWith(scope + 'assets/') && url.pathname.endsWith('.js'))
+            return sameOrigin && ((url.pathname.startsWith(scope + 'assets/') && /\.(js|wasm)$/.test(url.pathname))
               || (url.pathname.startsWith(scope + 'language-assets-') && url.pathname.endsWith('.json')))
           },
           handler: 'CacheFirst',

@@ -36,7 +36,7 @@ export default function ShortcutHelp(props: { open: boolean; onClose: () => void
         <thead><tr><th scope="col">Action</th><th scope="col">Alt</th><th scope="col">Ctrl+Shift</th></tr></thead>
         <tbody>
           <For each={shortcuts}>{(shortcut) => (
-            <tr><th scope="row">{shortcut.label}</th><td><kbd>{shortcut.altLabel}</kbd></td><td>{shortcut.ctrlShiftLabel ? <kbd>{shortcut.ctrlShiftLabel}</kbd> : '—'}</td></tr>
+            <tr><th scope="row">{shortcut.label}</th><td>{shortcut.altLabel ? <kbd>{shortcut.altLabel}</kbd> : '—'}</td><td>{shortcut.ctrlShiftLabel ? <kbd>{shortcut.ctrlShiftLabel}</kbd> : '—'}</td></tr>
           )}</For>
         </tbody>
       </table>

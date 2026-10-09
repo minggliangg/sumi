@@ -27,7 +27,7 @@ const loaders: Record<LanguageId, () => Promise<Extension>> = {
 // runtime cache sees their entire dependency graph. Browser policy or a failed
 // registration must never leave language loading waiting indefinitely.
 let workerReady: Promise<void> | undefined
-function waitForWorker() {
+export function waitForWorker() {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator) || navigator.serviceWorker.controller) return Promise.resolve()
   if (!workerReady) workerReady = new Promise<void>(resolve => {
     const workers = navigator.serviceWorker
@@ -45,10 +45,10 @@ function waitForWorker() {
 }
 
 declare const __SUMI_LANGUAGE_MANIFEST__: string
-interface LanguageAssets { languagePacks: Record<string, { files: string[] }> }
+interface LanguageAssets { languagePacks: Record<string, { files: string[] }>; formatterPacks: Record<string, { files: string[] }> }
 let assets: Promise<LanguageAssets> | undefined
 const prepared = new Map<string, Promise<void>>()
-async function prepareLanguage(id: LanguageId) {
+export async function prepareAssets(group: 'languagePacks' | 'formatterPacks', pack: string) {
   if (!import.meta.env.PROD) return
   // Fetch every dependency before entering the browser's module map. Network
   // failures then remain retryable, and a controlling worker caches the files.
@@ -59,10 +59,10 @@ async function prepareLanguage(id: LanguageId) {
     }).catch(error => { assets = undefined; throw error })
   }
   const catalogue = await assets
-  const pack = ['typescript', 'jsx', 'tsx'].includes(id) ? 'javascript' : id
-  const files = catalogue.languagePacks[pack]?.files
+  const files = catalogue[group][pack]?.files
   if (!files) throw new Error('Language pack unavailable')
-  let preparation = prepared.get(pack)
+  const key = `${group}:${pack}`
+  let preparation = prepared.get(key)
   if (!preparation) {
     preparation = Promise.all(files.map(async file => {
       const response = await fetch(`${import.meta.env.BASE_URL}${file}`)
@@ -70,8 +70,8 @@ async function prepareLanguage(id: LanguageId) {
       // Consume the body before importing; headers alone do not establish that
       // the complete file arrived. Workbox retains the same successful response.
       await response.arrayBuffer()
-    })).then(() => undefined).catch(error => { prepared.delete(pack); throw error })
-    prepared.set(pack, preparation)
+    })).then(() => undefined).catch(error => { prepared.delete(key); throw error })
+    prepared.set(key, preparation)
   }
   await preparation
 }
@@ -80,7 +80,7 @@ const pending = new Map<LanguageId, Promise<Extension>>()
 export function loadLanguage(id: LanguageId) {
   let promise = pending.get(id)
   if (!promise) {
-    promise = waitForWorker().then(() => prepareLanguage(id)).then(() => loaders[id]()).catch(error => { pending.delete(id); throw error })
+    promise = waitForWorker().then(() => prepareAssets('languagePacks', ['typescript', 'jsx', 'tsx'].includes(id) ? 'javascript' : id)).then(() => loaders[id]()).catch(error => { pending.delete(id); throw error })
     pending.set(id, promise)
   }
   return promise

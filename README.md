@@ -44,6 +44,7 @@ src/
 | Jump to tab | Alt+1…9 | — |
 | Toggle horizontal / vertical tabs | Alt+Shift+L | Ctrl+Shift+L |
 | Show keyboard shortcuts | Alt+/ | Ctrl+Shift+/ |
+| Format document | — | Ctrl+Shift+F |
 
 The keyboard icon in the tab bar opens shortcut help. On Mac, Alt means Option and Ctrl means Control. If your tablet keyboard does not deliver Alt shortcuts to the app, try the Ctrl+Shift alternatives. Shortcut matching accepts `key` when the keyboard event omits `code`; physical-key matching is retained for macOS Option dead keys. Actual device/browser shortcut delivery still needs hardware verification.
 
@@ -56,9 +57,17 @@ Auto detection runs locally after pasting or 750 ms without edits and inspects a
 
 Packs download when requested and are cached for offline use. On the first visit, loading waits up to two seconds for the service worker to control the page, so the initial pack can be cached. Language metadata ships with the app shell; pack dependencies are fetched successfully before importing, so failed downloads can be retried. Unused packs are excluded from the initial installation. An unavailable pack leaves the editor usable in plain text with a Retry action. Browser storage eviction can remove cached packs; a first download requires connectivity. There is no separate pack removal manager. Previous-release caches are retained so open windows can keep using their assets; installed storage can therefore grow across updates. Documents above 5 MiB of UTF-8 data use plain text until they fall below the limit.
 
-Production builds emit `dist/language-bundle-report.json` with minified and gzip sizes for the initial JavaScript, each language dependency closure, and the combined language payload. These code sizes exclude browser cache overhead and retained releases, so they are not installed-storage measurements.
+Production builds emit `dist/language-bundle-report.json` with minified and gzip sizes for the initial JavaScript, each language and formatter dependency closure, and their combined payloads. These code sizes exclude browser cache overhead and retained releases, so they are not installed-storage measurements.
 
 Language changes preserve text, selection, undo history and scroll position. Language choices, like documents, currently live only in memory and reset on reload. File import and filename-extension detection remain future work.
+
+## Formatting
+
+Use **Format document** beside the language picker or **Ctrl+Shift+F** to format the active document. Formatting supports JavaScript, TypeScript, JSX, TSX, JSON, CSS, HTML, Markdown, Python and SQL. Select a language manually when Auto cannot identify it. Plain text and documents above the highlighting size limit cannot be formatted.
+
+Formatting runs locally in a worker and downloads its formatter assets only when requested. Successfully requested assets are cached for offline use; the first download requires connectivity. Python formatting downloads a roughly 10.4 MiB Ruff WebAssembly runtime (about 3.7 MiB gzip); all formatter assets together are about 12.7 MiB raw / 4.35 MiB gzip in the current build. Highlighting Python does not download this runtime. Browser cache storage and retained releases can add overhead. Syntax errors or unavailable assets leave the document unchanged and show a short error. Retry after correcting the source or reconnecting. A document edited or given a different language while formatting is in progress keeps the newer state; run Format document again.
+
+Formatting preserves selection and scroll position and creates one undoable edit. An unchanged result adds no undo history. Switching tabs during formatting applies a completed result only to its original tab; closing that tab discards the result. Format settings are currently fixed: two-space indentation, 80-column wrapping, double quotes and semicolons for Prettier-supported languages; Python uses Ruff with four-space indentation, 88-column wrapping and double quotes; SQL uses two-space indentation and uppercase keywords. Markdown embedded code blocks are not reformatted. Documents and language choices still live only in memory.
 
 ## GitHub Pages
 

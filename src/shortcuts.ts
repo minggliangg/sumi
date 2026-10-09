@@ -1,10 +1,10 @@
-type ShortcutAction = 'new' | 'close' | 'previous' | 'next' | 'jump' | 'layout' | 'help'
+type ShortcutAction = 'new' | 'close' | 'previous' | 'next' | 'jump' | 'layout' | 'help' | 'format'
 
 interface Shortcut {
   action: ShortcutAction
   label: string
-  altCode: string
-  altLabel: string
+  altCode?: string
+  altLabel?: string
   altShift?: boolean
   ctrlShiftCode?: string
   ctrlShiftLabel?: string
@@ -19,6 +19,7 @@ export const shortcuts: Shortcut[] = [
   { action: 'next', label: 'Next tab', altCode: 'BracketRight', altLabel: 'Alt+]', ctrlShiftCode: 'Period', ctrlShiftLabel: 'Ctrl+Shift+.', repeatable: true },
   { action: 'jump', label: 'Jump to tab 1–9', altCode: 'Digit1-9', altLabel: 'Alt+1…9', repeatable: true },
   { action: 'layout', label: 'Toggle tab layout', altCode: 'KeyL', altLabel: 'Alt+Shift+L', altShift: true, ctrlShiftCode: 'KeyL', ctrlShiftLabel: 'Ctrl+Shift+L' },
+  { action: 'format', label: 'Format document', ctrlShiftCode: 'KeyF', ctrlShiftLabel: 'Ctrl+Shift+F' },
   { action: 'help', label: 'Keyboard shortcuts', altCode: 'Slash', altLabel: 'Alt+/', ctrlShiftCode: 'Slash', ctrlShiftLabel: 'Ctrl+Shift+/' },
 ]
 

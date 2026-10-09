@@ -1,6 +1,8 @@
 import { createSignal, onCleanup } from 'solid-js'
 import { createStore } from 'solid-js/store'
-import type { EditorState, StateEffect, Transaction, Extension } from '@codemirror/state'
+import { Transaction as EditorTransaction, type EditorState, type StateEffect, type Transaction, type Extension } from '@codemirror/state'
+import { isolateHistory } from '@codemirror/commands'
+import { requestFormat, type FormatJob } from '../editor/formatting.ts'
 import { createEditorState, languageCompartment } from '../editor/setup.ts'
 import { detectLanguage, loadLanguage, MAX_HIGHLIGHT_BYTES, SAMPLE_BYTES, utf8Bytes, type LanguageId, type LanguageMode, type LanguageStatus } from '../editor/languages.ts'
 
@@ -10,6 +12,8 @@ export interface Tab {
   languageMode: LanguageMode
   resolvedLanguage: LanguageId | null
   languageStatus: LanguageStatus
+  formatStatus: 'idle' | 'formatting' | 'error'
+  formatError: string
 }
 
 // Editor state lives outside the reactive store: it is large, immutable,
@@ -37,12 +41,64 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
   let counter = 0
   let disposed = false
   const languageSessions = new Map<string, { bytes: number; generation: number; timer?: ReturnType<typeof setTimeout> }>()
+  const formatJobs = new Map<string, FormatJob>()
+  let applyFormatToView: ((id: string, transaction: Transaction) => boolean) | undefined
   let applyToView: ((id: string, effects: StateEffect<unknown>) => boolean) | undefined
 
   function metadata(id: string, values: Partial<Tab>) {
     const index = tabs.findIndex(tab => tab.id === id)
     if (index !== -1) setTabs(index, values)
   }
+
+  function cancelFormat(id: string, message = '') {
+    const job = formatJobs.get(id)
+    if (!job) return
+    formatJobs.delete(id)
+    job.cancel()
+    metadata(id, { formatStatus: message ? 'error' : 'idle', formatError: message })
+  }
+
+  async function formatDocument(id: string) {
+    const tab = tabs.find(tab => tab.id === id)
+    const current = sessions.get(id)
+    if (!tab || !current || formatJobs.has(id) || !tab.resolvedLanguage || tab.languageMode === 'plain' || tab.languageStatus === 'large') return
+    if (!current.state.doc.length) { metadata(id, { formatStatus: 'idle', formatError: '' }); return }
+    const original = current.state.doc
+    const mode = tab.languageMode
+    const language = tab.resolvedLanguage
+    const job = requestFormat(language, original.toString())
+    formatJobs.set(id, job)
+    metadata(id, { formatStatus: 'formatting', formatError: '' })
+    try {
+      const changes = await job.promise
+      if (disposed || formatJobs.get(id) !== job) return
+      formatJobs.delete(id)
+      const session = sessions.get(id)
+      if (!session || session.state.doc !== original || tab.languageMode !== mode || tab.resolvedLanguage !== language) {
+        metadata(id, { formatStatus: 'error', formatError: 'Document changed. Format again.' })
+        return
+      }
+      if (changes.length) {
+        const transaction = session.state.update({ changes, annotations: [isolateHistory.of('full'), EditorTransaction.userEvent.of('input.format')] })
+        if (!applyFormatToView?.(id, transaction)) {
+          session.state = transaction.state
+          // Stored scroll anchors reference the previous document. Map them
+          // through the same change set before this inactive tab is restored.
+          if (session.scroll) session.scroll = session.scroll.map(transaction.changes) ?? undefined
+          setTitle(id, titleFor(transaction.state.doc.line(1).text))
+          documentChanged(id, [transaction])
+        }
+      }
+      metadata(id, { formatStatus: 'idle', formatError: '' })
+    } catch (error) {
+      if (disposed || formatJobs.get(id) !== job) return
+      formatJobs.delete(id)
+      const message = error instanceof Error ? error.message : 'Formatting failed.'
+      metadata(id, { formatStatus: 'error', formatError: message.length > 240 ? message.slice(0, 240) + '…' : message })
+    }
+  }
+
+  function setFormatHandler(handler?: typeof applyFormatToView) { applyFormatToView = handler }
 
   function configure(id: string, extension: Extension) {
     const current = sessions.get(id)
@@ -80,6 +136,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
   function setLanguage(id: string, mode: LanguageMode) {
     const current = languageSessions.get(id)
     if (!current) return
+    cancelFormat(id, 'Document changed. Format again.')
     clearTimeout(current.timer)
     metadata(id, { languageMode: mode })
     if (current.bytes > MAX_HIGHLIGHT_BYTES) {
@@ -101,6 +158,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     const current = languageSessions.get(id)
     const tab = tabs.find(tab => tab.id === id)
     if (!current || !tab) return
+    cancelFormat(id, 'Document changed. Format again.')
     let fullPaste = false
     let recountBytes = false
     for (const tr of transactions) {
@@ -138,6 +196,9 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
 
   onCleanup(() => {
     disposed = true
+    for (const job of formatJobs.values()) job.cancel()
+    formatJobs.clear()
+    applyFormatToView = undefined
     for (const current of languageSessions.values()) clearTimeout(current.timer)
     applyToView = undefined
   })
@@ -146,7 +207,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     const id = `tab-${++counter}`
     sessions.set(id, { state: createEditorState(doc) })
     languageSessions.set(id, { bytes: utf8Bytes(doc), generation: 0 })
-    setTabs(tabs.length, { id, title: titleFor(doc.split('\n', 1)[0]), languageMode: 'auto', resolvedLanguage: null, languageStatus: 'plain' })
+    setTabs(tabs.length, { id, title: titleFor(doc.split('\n', 1)[0]), languageMode: 'auto', resolvedLanguage: null, languageStatus: 'plain', formatStatus: 'idle', formatError: '' })
     if (doc) setLanguage(id, 'auto')
     setActiveId(id)
     return id
@@ -157,6 +218,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     if (index === -1) return
     const current = sessions.get(id)
     if (current && !beforeClose(current.state)) return
+    cancelFormat(id)
     clearTimeout(languageSessions.get(id)?.timer)
     languageSessions.delete(id)
     sessions.delete(id)
@@ -199,7 +261,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
 
   open()
 
-  return { tabs, activeId, open, close, select, selectIndex, cycle, setTitle, session, saveSession, hasContent, setLanguage, retryLanguage, documentChanged, setLanguageEffectsHandler }
+  return { tabs, activeId, open, close, select, selectIndex, cycle, setTitle, session, saveSession, hasContent, setLanguage, retryLanguage, documentChanged, setLanguageEffectsHandler, formatDocument, setFormatHandler }
 }
 
 export type Tabs = ReturnType<typeof createTabs>

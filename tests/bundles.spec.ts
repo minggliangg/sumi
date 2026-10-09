@@ -10,6 +10,8 @@ interface BundleReport {
   initialJavaScript: SizeReport
   languagePacks: Record<string, SizeReport & { entryFile: string }>
   combinedLanguages: SizeReport
+  formatterPacks: Record<string, SizeReport & { entryFile: string }>
+  combinedFormatters: SizeReport
 }
 
 async function report(): Promise<BundleReport> {
@@ -42,6 +44,20 @@ test('build reports seven language closures and precaches only the application s
   expect([...combined].sort()).toEqual([...bundles.combinedLanguages.files].sort())
   for (const file of bundles.initialJavaScript.files) expect(precache).toContain(file)
   expect(bundles.initialJavaScript.files.some((file) => file.includes('workbox-window'))).toBe(true)
+  expect(Object.keys(bundles.formatterPacks).sort()).toEqual(['babel', 'estree', 'html', 'markdown', 'postcss', 'prettier', 'python', 'sql', 'typescript', 'worker'])
+  expect(manifest.formatterPacks).toEqual(bundles.formatterPacks)
+  const formatterFiles = new Set<string>()
+  for (const pack of Object.values(bundles.formatterPacks)) {
+    expect(pack.files).toContain(pack.entryFile)
+    for (const file of pack.files) {
+      await access(`dist/${file}`)
+      expect(bundles.initialJavaScript.files).not.toContain(file)
+      expect(precache).not.toContain(file)
+      formatterFiles.add(file)
+    }
+  }
+  expect([...formatterFiles].sort()).toEqual([...bundles.combinedFormatters.files].sort())
+  expect(bundles.formatterPacks.python.files.some((file) => file.endsWith('.wasm'))).toBe(true)
 })
 
 test('worker serves previous-release language cache entries while offline', async ({ page, context }) => {

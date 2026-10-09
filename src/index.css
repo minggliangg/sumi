@@ -458,3 +458,11 @@ button:focus-visible {
 .tok-string { color: var(--syntax-string); }
 .tok-number { color: var(--syntax-number); }
 .tok-comment { color: var(--syntax-comment); }
+
+.format-button {
+  pointer-events: auto;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.format-button:hover:enabled { background: var(--hover); color: var(--fg); }
+.format-button:disabled { opacity: 0.6; cursor: default; }

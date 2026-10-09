@@ -48,6 +48,14 @@ export default function Editor(props: Props) {
       return true
     })
 
+    tabs.setFormatHandler((id, transaction) => {
+      if (id !== tabs.activeId()) return false
+      const scroll = view.scrollSnapshot().map(transaction.changes)
+      // Apply the formatting transaction and its mapped scroll anchor together.
+      view.dispatch([transaction, transaction.state.update({ effects: scroll })])
+      return true
+    })
+
     let shownId = tabs.activeId()
 
     createEffect(
@@ -67,7 +75,7 @@ export default function Editor(props: Props) {
 
     props.onCursor(cursorOf(view.state))
     view.focus()
-    onCleanup(() => { tabs.setLanguageEffectsHandler(); view.destroy() })
+    onCleanup(() => { tabs.setLanguageEffectsHandler(); tabs.setFormatHandler(); view.destroy() })
   })
 
   return (
