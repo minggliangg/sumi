@@ -31,13 +31,21 @@ export default function Editor(props: Props) {
       parent: host,
       state: tabs.session(tabs.activeId())!.state,
       dispatchTransactions(trs, view) {
+        const id = tabs.activeId()
         view.update(trs)
-        tabs.saveSession(tabs.activeId(), { state: view.state })
+        tabs.saveSession(id, { state: view.state })
         if (trs.some((tr) => tr.docChanged)) {
-          tabs.setTitle(tabs.activeId(), titleFor(view.state.doc.line(1).text))
+          tabs.setTitle(id, titleFor(view.state.doc.line(1).text))
+          tabs.documentChanged(id, trs)
         }
         if (trs.some((tr) => tr.docChanged || tr.selection)) props.onCursor(cursorOf(view.state))
       },
+    })
+
+    tabs.setLanguageEffectsHandler((id, effects) => {
+      if (id !== tabs.activeId()) return false
+      view.dispatch({ effects })
+      return true
     })
 
     let shownId = tabs.activeId()
@@ -59,7 +67,7 @@ export default function Editor(props: Props) {
 
     props.onCursor(cursorOf(view.state))
     view.focus()
-    onCleanup(() => view.destroy())
+    onCleanup(() => { tabs.setLanguageEffectsHandler(); view.destroy() })
   })
 
   return (

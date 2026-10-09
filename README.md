@@ -29,8 +29,9 @@ src/
   tabs/tabs.ts           tab model (one EditorState per tab)
   components/Editor      single CodeMirror view shared by all tabs
   components/TabBar      horizontal / vertical tab bar
-  components/StatusBar   cursor position
+  components/StatusBar   cursor position + language picker
   editor/setup.ts        CodeMirror extensions + theme
+  editor/languages.ts    curated language registry + local detection
 ```
 
 ## Shortcuts
@@ -46,6 +47,18 @@ src/
 
 The keyboard icon in the tab bar opens shortcut help. On Mac, Alt means Option and Ctrl means Control. If your tablet keyboard does not deliver Alt shortcuts to the app, try the Ctrl+Shift alternatives. Shortcut matching accepts `key` when the keyboard event omits `code`; physical-key matching is retained for macOS Option dead keys. Actual device/browser shortcut delivery still needs hardware verification.
 
+
+## Syntax highlighting
+
+The language button beside the cursor position opens a searchable picker. Each tab has its own **Auto**, **Plain text**, or manual language choice. JavaScript, TypeScript, JSX, TSX, Python, JSON, HTML, CSS, Markdown and SQL are available through seven lazy-loaded packs. Highlight colours follow the system light/dark theme.
+
+Auto detection runs locally after pasting or 750 ms without edits and inspects at most the first 16 KiB. It recognises strong code signals; ambiguous prose stays plain text. Once detected, a language stays selected during ordinary editing. Emptying the document, replacing the whole document by paste, or selecting Auto again resets detection. Manual choices always take precedence. Tab titles come from the first line and are not treated as filenames.
+
+Packs download when requested and are cached for offline use. On the first visit, loading waits up to two seconds for the service worker to control the page, so the initial pack can be cached. Language metadata ships with the app shell; pack dependencies are fetched successfully before importing, so failed downloads can be retried. Unused packs are excluded from the initial installation. An unavailable pack leaves the editor usable in plain text with a Retry action. Browser storage eviction can remove cached packs; a first download requires connectivity. There is no separate pack removal manager. Previous-release caches are retained so open windows can keep using their assets; installed storage can therefore grow across updates. Documents above 5 MiB of UTF-8 data use plain text until they fall below the limit.
+
+Production builds emit `dist/language-bundle-report.json` with minified and gzip sizes for the initial JavaScript, each language dependency closure, and the combined language payload. These code sizes exclude browser cache overhead and retained releases, so they are not installed-storage measurements.
+
+Language changes preserve text, selection, undo history and scroll position. Language choices, like documents, currently live only in memory and reset on reload. File import and filename-extension detection remain future work.
 
 ## GitHub Pages
 

@@ -43,7 +43,7 @@ export default function App() {
       e.stopPropagation()
       return
     }
-    if (showShortcuts()) return
+    if (showShortcuts() || document.querySelector('dialog[open]')) return
     const shortcut = matchShortcut(e)
     if (!shortcut) return
     e.preventDefault()
@@ -85,7 +85,7 @@ export default function App() {
         shortcutsOpen={showShortcuts()}
       />
       <Editor tabs={tabs} onCursor={setCursor} />
-      <StatusBar cursor={cursor()} update={update} />
+      <StatusBar cursor={cursor()} update={update} tabs={tabs} />
       <ShortcutHelp open={showShortcuts()} onClose={() => setShowShortcuts(false)} />
     </main>
   )

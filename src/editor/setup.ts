@@ -1,4 +1,6 @@
-import { EditorState, type Extension } from '@codemirror/state'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { tags } from '@lezer/highlight'
+import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, keymap, drawSelection, highlightActiveLine } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 
@@ -24,9 +26,18 @@ const theme = EditorView.theme({
 })
 
 // Base extensions shared by plain-text and code modes.
-// Language support / syntax highlighting will be added as an optional layer later.
+// The compartment is present even in plain text, preserving state when reconfigured.
+export const languageCompartment = new Compartment()
+const highlightStyle = HighlightStyle.define([
+  { tag: tags.keyword, class: 'tok-keyword' },
+  { tag: [tags.string, tags.special(tags.string)], class: 'tok-string' },
+  { tag: [tags.number, tags.bool, tags.null], class: 'tok-number' },
+  { tag: tags.comment, class: 'tok-comment' },
+])
 export const baseExtensions: Extension[] = [
   history(),
+  languageCompartment.of([]),
+  syntaxHighlighting(highlightStyle),
   drawSelection(),
   highlightActiveLine(),
   EditorView.lineWrapping,
