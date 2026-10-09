@@ -1,5 +1,11 @@
 import { createEffect, For, onCleanup } from 'solid-js'
+import { X } from 'lucide-solid'
 import { shortcuts } from '../shortcuts.ts'
+
+// Render "Ctrl+Shift+Enter" as separate keycaps. The text is kept intact for copy and screen readers.
+function Keys(props: { combo: string }) {
+  return <kbd aria-label={props.combo}>{props.combo.split('+').map((key, i) => <>{i > 0 && <span class="kbd-plus" aria-hidden="true">+</span>}<span class="keycap" aria-hidden="true">{key}</span></>)}</kbd>
+}
 
 export default function ShortcutHelp(props: { open: boolean; onClose: () => void }) {
   let dialog!: HTMLDialogElement
@@ -16,7 +22,7 @@ export default function ShortcutHelp(props: { open: boolean; onClose: () => void
     <dialog
       ref={dialog}
       id="shortcut-help"
-      class="shortcut-help"
+      class="dialog shortcut-help"
       aria-labelledby="shortcut-title"
       onCancel={(e) => {
         e.preventDefault()
@@ -29,14 +35,14 @@ export default function ShortcutHelp(props: { open: boolean; onClose: () => void
     >
       <div class="shortcut-heading">
         <h1 id="shortcut-title">Keyboard shortcuts</h1>
-        <button type="button" class="tabbar-button" aria-label="Close keyboard shortcuts" onClick={props.onClose} autofocus>×</button>
+        <button type="button" class="tabbar-button" aria-label="Close keyboard shortcuts" onClick={props.onClose} autofocus><X size={18} /></button>
       </div>
       <p class="shortcut-intro">Use either set while writing. Try Ctrl+Shift if Alt is unavailable on your keyboard.</p>
       <table>
         <thead><tr><th scope="col">Action</th><th scope="col">Alt</th><th scope="col">Ctrl+Shift</th></tr></thead>
         <tbody>
           <For each={shortcuts}>{(shortcut) => (
-            <tr><th scope="row">{shortcut.label}</th><td>{shortcut.altLabel ? <kbd>{shortcut.altLabel}</kbd> : '—'}</td><td>{shortcut.ctrlShiftLabel ? <kbd>{shortcut.ctrlShiftLabel}</kbd> : '—'}</td></tr>
+            <tr><th scope="row">{shortcut.label}</th><td>{shortcut.altLabel ? <Keys combo={shortcut.altLabel} /> : '—'}</td><td>{shortcut.ctrlShiftLabel ? <Keys combo={shortcut.ctrlShiftLabel} /> : '—'}</td></tr>
           )}</For>
         </tbody>
       </table>

@@ -19,6 +19,7 @@ interface Props {
   tabs: Tabs
   onCursor: (cursor: Cursor) => void
   fontSize: number
+  lineNumbers: boolean
 }
 
 export default function Editor(props: Props) {
@@ -103,6 +104,9 @@ export default function Editor(props: Props) {
         },
       })
     }, { defer: true }))
+
+    // The gutter appears or disappears through CSS; let CodeMirror re-measure its layout.
+    createEffect(on(() => props.lineNumbers, () => view.requestMeasure(), { defer: true }))
 
     props.onCursor(cursorOf(view.state))
     view.focus()

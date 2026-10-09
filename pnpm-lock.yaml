@@ -56,6 +56,9 @@ importers:
       diff:
         specifier: ^9.0.0
         version: 9.0.0
+      lucide-solid:
+        specifier: ^1.52.0
+        version: 1.52.0(solid-js@1.9.16)
       prettier:
         specifier: ^3.9.9
         version: 3.9.9
@@ -1636,6 +1639,11 @@ packages:
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
+
+  lucide-solid@1.52.0:
+    resolution: {integrity: sha512-uesU2FyxqeSmPNxdMkbjL20ZpTEu1U0WS3kXXsuPrd3aku8vVyPmz9+/d1PO8G6PvKKVaVH3MDZmL5gLO6kYSg==}
+    peerDependencies:
+      solid-js: ^1.4.7
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
@@ -3887,6 +3895,10 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
+
+  lucide-solid@1.52.0(solid-js@1.9.16):
+    dependencies:
+      solid-js: 1.9.16
 
   magic-string@0.30.21:
     dependencies:

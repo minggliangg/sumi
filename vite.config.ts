@@ -119,7 +119,7 @@ export default defineConfig({
     VitePWA({
       // Activation and reload require user approval while text lives in memory.
       registerType: 'prompt',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,woff2}', 'language-assets-*.json'],
         cacheId: `sumi-${release}`,
@@ -173,8 +173,12 @@ export default defineConfig({
         theme_color: '#fbfaf7',
         background_color: '#fbfaf7',
         display: 'standalone',
-        // TODO: add 192/512 PNG + maskable icons for broader install support
-        icons: [{ src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' }],
+        icons: [
+          { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
     }),
   ],

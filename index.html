@@ -3,11 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#fbfaf7" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141414" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="A minimal writing and code editor." />
     <title>sumi.</title>
+    <script>
+      // Apply the saved theme before first paint. Keep in step with src/appearance.ts.
+      (function () {
+        var theme = 'sumi', mode = 'system'
+        try {
+          theme = localStorage.getItem('sumi:theme') || theme
+          mode = localStorage.getItem('sumi:theme-mode') || mode
+        } catch (e) {}
+        if (mode !== 'light' && mode !== 'dark') mode = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        document.documentElement.dataset.theme = theme
+        document.documentElement.dataset.mode = mode
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

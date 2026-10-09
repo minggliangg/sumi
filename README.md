@@ -28,8 +28,12 @@ src/
   updates.ts             user-approved service worker updates
   tabs/tabs.ts           tab model (one EditorState per tab)
   components/Editor      single CodeMirror view shared by all tabs
-  components/TabBar      horizontal / vertical tab bar
-  components/StatusBar   cursor position + language picker
+  components/TabBar      horizontal / vertical tab bar; vertical becomes a drawer on phones
+  components/Menu        overflow action menu used on narrow screens
+  components/StatusBar   save state, format, text size, language picker, cursor position
+  appearance.ts          theme, light/dark mode and line-number preferences
+  themes/palettes.css    colour palettes for the non-default themes
+  media.ts               media-query signal and the shared narrow-screen breakpoint (640 px)
   editor/setup.ts        CodeMirror extensions + theme
   editor/languages.ts    curated language registry + local detection
 ```
@@ -43,11 +47,18 @@ src/
 | Previous / next tab | Alt+[ / Alt+] | Ctrl+Shift+, / Ctrl+Shift+. |
 | Jump to tab | Alt+1…9 | — |
 | Toggle horizontal / vertical tabs | Alt+Shift+L | Ctrl+Shift+L |
+| Toggle line numbers | Alt+Shift+N | — |
 | Show keyboard shortcuts | Alt+/ | Ctrl+Shift+/ |
 | Format document | — | Ctrl+Shift+F |
 
 The keyboard icon in the tab bar opens shortcut help. On Mac, Alt means Option and Ctrl means Control. If your tablet keyboard does not deliver Alt shortcuts to the app, try the Ctrl+Shift alternatives. Shortcut matching accepts `key` when the keyboard event omits `code`; physical-key matching is retained for macOS Option dead keys. Actual device/browser shortcut delivery still needs hardware verification.
 
+
+## Small screens
+
+At 640 px wide or less the tab bar keeps only the tab strip, **New tab** and a **More actions** (⋯) menu holding Rename tab, Open file, Export file, Recently closed, the tab layout switch and Keyboard shortcuts. With vertical tabs, the sidebar becomes a slide-over drawer opened from the tab button on the left of the bar; choosing a tab, tapping outside or pressing Escape closes it. Status text collapses to icons and a save indicator dot, and dialogs open as bottom sheets (the language picker opens from the top so the on-screen keyboard does not cover it). The status row sits below the editor rather than floating over it.
+
+Icons come from [Lucide](https://lucide.dev) (`lucide-solid`, ISC licence), imported per icon so only the ones in use are bundled.
 
 ## Syntax highlighting
 
@@ -69,11 +80,19 @@ Formatting runs locally in a worker and downloads its formatter assets only when
 
 Formatting preserves selection and scroll position and creates one undoable edit. An unchanged result adds no undo history. Switching tabs during formatting applies a completed result only to its original tab; closing that tab discards the result. Format settings are currently fixed: two-space indentation, 80-column wrapping, double quotes and semicolons for Prettier-supported languages; Python uses Ruff with four-space indentation, 88-column wrapping and double quotes; SQL uses two-space indentation and uppercase keywords. Markdown embedded code blocks are not reformatted. Documents and language choices are automatically saved for recovery.
 
+## Settings, themes and line numbers
+
+The sliders icon beside the language picker opens **Settings**: theme, colour mode, line numbers, text size and updates. All choices are remembered in this browser when storage is available.
+
+**Themes:** Sumi (default), Solarized, GitHub, One, Gruvbox and Catppuccin, each with a light and a dark variant. **Colour mode** is System (follows the operating system, live), Light or Dark. Palettes are CSS custom properties selected by `data-theme` and `data-mode` on `<html>`; a small inline script in `index.html` applies the saved choice before first paint. Text colours were checked for WCAG AA contrast, which required small lightness adjustments to a few canonical IDE colours (such as Solarized's comment grey); the playwright suite re-checks every theme in both modes. To add a theme, add a light and a dark block to `src/themes/palettes.css` and an entry to `THEMES` in `src/appearance.ts`.
+
+**Line numbers** are off by default. Toggle them in Settings or with Alt+Shift+N. The gutter is always part of each tab's editor state and is shown or hidden with CSS, so toggling never rebuilds documents; numbers are quiet and the current line's number is emphasised.
+
 ## Text size
 
-The **Aa** button beside the language picker opens **Text size and updates**. Adjust editor text from 16 to 28 px in one-pixel steps, or reset to 16 px. The choice is remembered in this browser when storage is available. Changing size keeps text, selection and undo history intact. Editable text uses a 16 px minimum to mitigate iPhone Safari focus zoom; pinch zoom remains available.
+In **Settings**, adjust editor text from 16 to 28 px in one-pixel steps, or reset to 16 px. The choice is remembered in this browser when storage is available. Changing size keeps text, selection and undo history intact. Editable text uses a 16 px minimum to mitigate iPhone Safari focus zoom; pinch zoom remains available.
 
-The same panel offers **Check for updates**, with a visible result and an Install update action when an update is ready. Updates still preserve drafts before reloading.
+The same dialog offers **Check for updates**, with a visible result and an Install update action when an update is ready. Updates still preserve drafts before reloading.
 
 ## GitHub Pages
 

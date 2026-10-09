@@ -262,7 +262,9 @@ test('shortcut help fits tablet and narrow screens in both tab layouts', async (
   await expect(dialog).toBeVisible()
   await context.close()
   await page.setViewportSize({ width: 360, height: 740 })
-  await page.getByRole('button', { name: 'Keyboard shortcuts', exact: true }).click()
+  // Narrow screens keep secondary actions in the overflow menu.
+  await page.getByRole('button', { name: 'More actions', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Keyboard shortcuts', exact: true }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   expect(await page.getByRole('dialog').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/narrow-shortcuts.png' })

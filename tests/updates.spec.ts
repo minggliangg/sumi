@@ -78,7 +78,7 @@ test('manual update check reports current version and detects an already waiting
   try {
     const page = await context.newPage()
     await openApp(page, server.url)
-    await page.getByRole('button', { name: 'Text size', exact: true }).click()
+    await page.getByRole('button', { name: 'Settings', exact: true }).click()
     await page.getByRole('button', { name: 'Check for updates', exact: true }).click()
     await expect(page.locator('.settings-updates').getByRole('status')).toContainText('This version is up to date.')
 
@@ -98,7 +98,7 @@ test('manual update check reports a failed service worker request', async ({ bro
   try {
     const page = await context.newPage()
     await openApp(page, server.url)
-    await page.getByRole('button', { name: 'Text size', exact: true }).click()
+    await page.getByRole('button', { name: 'Settings', exact: true }).click()
     server.fail()
     await page.getByRole('button', { name: 'Check for updates', exact: true }).click()
     await expect(page.locator('.settings-updates').getByRole('status')).toContainText('Could not check for updates.')

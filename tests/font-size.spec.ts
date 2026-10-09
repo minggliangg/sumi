@@ -1,11 +1,11 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const editor = (page: Page) => page.getByRole('textbox', { name: 'Text editor' })
-const sizeDialog = (page: Page) => page.getByRole('dialog', { name: 'Text size and updates' })
+const sizeDialog = (page: Page) => page.getByRole('dialog', { name: 'Settings', exact: true })
 const sizeSlider = (page: Page) => sizeDialog(page).getByRole('slider', { name: 'Editor font size' })
 
 async function openSizeDialog(page: Page) {
-  await page.getByRole('button', { name: 'Text size', exact: true }).click()
+  await page.getByRole('button', { name: 'Settings', exact: true }).click()
   await expect(sizeDialog(page)).toBeVisible()
 }
 

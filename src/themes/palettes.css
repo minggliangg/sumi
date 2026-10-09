@@ -1,0 +1,279 @@
+/* Colour palettes for the sumi IDE-style themes. Each block is scoped by
+   data-theme and data-mode, not :root, so preview swatches can carry them. */
+
+/* Solarized (Ethan Schoonover): Solarized Light and Solarized Dark. */
+/* Contrast nudge (same hue, lightness only; original value in parentheses):
+   --muted: #657b83 -> #60747c
+   --danger: #dc322f -> #d92825
+   --syntax-keyword: #859900 -> #697800
+   --syntax-string: #2aa198 -> #217d76
+   --syntax-number: #d33682 -> #ce2d7b
+   --syntax-comment: #93a1a1 -> #657474
+   --syntax-function: #268bd2 -> #2076b3
+   --syntax-type: #b58900 -> #8e6c00
+*/
+[data-theme='solarized'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #fdf6e3;
+  --fg: #073642;
+  --muted: #60747c;
+  --faint: #93a1a1;
+  --rule: rgb(7 54 66 / 0.08);
+  --hover: rgb(7 54 66 / 0.05);
+  --active-line: rgb(7 54 66 / 0.04);
+  --selection: rgb(38 139 210 / 0.2);
+  --danger: #d92825;
+  --scrim: rgb(0 0 0 / 0.32);
+  --shadow: 0 18px 50px -12px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.08);
+  --syntax-keyword: #697800;
+  --syntax-string: #217d76;
+  --syntax-number: #ce2d7b;
+  --syntax-comment: #657474;
+  --syntax-function: #2076b3;
+  --syntax-type: #8e6c00;
+  --swatch-accent: #268bd2;
+}
+
+/* Contrast nudge (same hue, lightness only; original value in parentheses):
+   --danger: #dc322f -> #e56462
+   --syntax-number: #d33682 -> #dd639e
+   --syntax-comment: #586e75 -> #78929a
+   --syntax-function: #268bd2 -> #3094da
+*/
+[data-theme='solarized'][data-mode='dark'] {
+  color-scheme: dark;
+  --bg: #002b36;
+  --fg: #eee8d5;
+  --muted: #839496;
+  --faint: #586e75;
+  --rule: rgb(238 232 213 / 0.07);
+  --hover: rgb(238 232 213 / 0.06);
+  --active-line: rgb(238 232 213 / 0.03);
+  --selection: rgb(38 139 210 / 0.24);
+  --danger: #e56462;
+  --scrim: rgb(0 0 0 / 0.5);
+  --shadow: 0 18px 50px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --syntax-keyword: #859900;
+  --syntax-string: #2aa198;
+  --syntax-number: #dd639e;
+  --syntax-comment: #78929a;
+  --syntax-function: #3094da;
+  --syntax-type: #b58900;
+  --swatch-accent: #268bd2;
+}
+
+/* GitHub (Primer): GitHub Light Default and GitHub Dark Default. */
+[data-theme='github'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --muted: #656d76;
+  --faint: #d1d9e0;
+  --rule: rgb(31 35 40 / 0.08);
+  --hover: rgb(31 35 40 / 0.05);
+  --active-line: rgb(31 35 40 / 0.04);
+  --selection: rgb(9 105 218 / 0.2);
+  --danger: #cf222e;
+  --scrim: rgb(0 0 0 / 0.32);
+  --shadow: 0 18px 50px -12px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.08);
+  --syntax-keyword: #cf222e;
+  --syntax-string: #0a3069;
+  --syntax-number: #0550ae;
+  --syntax-comment: #6e7781;
+  --syntax-function: #8250df;
+  --syntax-type: #953800;
+  --swatch-accent: #0969da;
+}
+
+[data-theme='github'][data-mode='dark'] {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --fg: #e6edf3;
+  --muted: #8d96a0;
+  --faint: #3d444d;
+  --rule: rgb(230 237 243 / 0.07);
+  --hover: rgb(230 237 243 / 0.06);
+  --active-line: rgb(230 237 243 / 0.03);
+  --selection: rgb(88 166 255 / 0.24);
+  --danger: #f85149;
+  --scrim: rgb(0 0 0 / 0.5);
+  --shadow: 0 18px 50px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --syntax-keyword: #ff7b72;
+  --syntax-string: #a5d6ff;
+  --syntax-number: #79c0ff;
+  --syntax-comment: #8b949e;
+  --syntax-function: #d2a8ff;
+  --syntax-type: #ffa657;
+  --swatch-accent: #58a6ff;
+}
+
+/* Atom One: One Light and One Dark. */
+/* Contrast nudge (same hue, lightness only; original value in parentheses):
+   --danger: #e45649 -> #da3020
+   --syntax-string: #50a14f -> #40813f
+   --syntax-comment: #a0a1a7 -> #71737a
+   --syntax-function: #4078f2 -> #2d6af1
+   --syntax-type: #c18401 -> #9a6a01
+*/
+[data-theme='one'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #fafafa;
+  --fg: #383a42;
+  --muted: #696c77;
+  --faint: #d4d5d8;
+  --rule: rgb(56 58 66 / 0.08);
+  --hover: rgb(56 58 66 / 0.05);
+  --active-line: rgb(56 58 66 / 0.04);
+  --selection: rgb(64 120 242 / 0.2);
+  --danger: #da3020;
+  --scrim: rgb(0 0 0 / 0.32);
+  --shadow: 0 18px 50px -12px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.08);
+  --syntax-keyword: #a626a4;
+  --syntax-string: #40813f;
+  --syntax-number: #986801;
+  --syntax-comment: #71737a;
+  --syntax-function: #2d6af1;
+  --syntax-type: #9a6a01;
+  --swatch-accent: #4078f2;
+}
+
+/* Contrast nudge (same hue, lightness only; original value in parentheses):
+   --fg: #abb2bf -> #b2b8c4
+   --muted: #5c6370 -> #8c93a0
+   --danger: #e06c75 -> #e17078
+   --syntax-comment: #5c6370 -> #8c93a0
+*/
+[data-theme='one'][data-mode='dark'] {
+  color-scheme: dark;
+  --bg: #282c34;
+  --fg: #b2b8c4;
+  --muted: #8c93a0;
+  --faint: #3e4451;
+  --rule: rgb(178 184 196 / 0.07);
+  --hover: rgb(178 184 196 / 0.06);
+  --active-line: rgb(178 184 196 / 0.03);
+  --selection: rgb(97 175 239 / 0.24);
+  --danger: #e17078;
+  --scrim: rgb(0 0 0 / 0.5);
+  --shadow: 0 18px 50px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --syntax-keyword: #c678dd;
+  --syntax-string: #98c379;
+  --syntax-number: #d19a66;
+  --syntax-comment: #8c93a0;
+  --syntax-function: #61afef;
+  --syntax-type: #e5c07b;
+  --swatch-accent: #61afef;
+}
+
+/* Gruvbox (medium contrast): Gruvbox Light and Gruvbox Dark. */
+/* Contrast nudge (same hue, lightness only; original value in parentheses):
+   --muted: #7c6f64 -> #786b61
+   --syntax-string: #79740e -> #75700e
+   --syntax-comment: #928374 -> #786b5e
+   --syntax-function: #427b58 -> #417956
+   --syntax-type: #b57614 -> #976211
+*/
+[data-theme='gruvbox'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #fbf1c7;
+  --fg: #3c3836;
+  --muted: #786b61;
+  --faint: #bdae93;
+  --rule: rgb(60 56 54 / 0.08);
+  --hover: rgb(60 56 54 / 0.05);
+  --active-line: rgb(60 56 54 / 0.04);
+  --selection: rgb(7 102 120 / 0.2);
+  --danger: #9d0006;
+  --scrim: rgb(0 0 0 / 0.32);
+  --shadow: 0 18px 50px -12px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.08);
+  --syntax-keyword: #9d0006;
+  --syntax-string: #75700e;
+  --syntax-number: #8f3f71;
+  --syntax-comment: #786b5e;
+  --syntax-function: #417956;
+  --syntax-type: #976211;
+  --swatch-accent: #076678;
+}
+
+/* Contrast nudge (same hue, lightness only; original value in parentheses):
+   --danger: #fb4934 -> #fb5440
+   --syntax-keyword: #fb4934 -> #fb5440
+   --syntax-comment: #928374 -> #9a8d7f
+*/
+[data-theme='gruvbox'][data-mode='dark'] {
+  color-scheme: dark;
+  --bg: #282828;
+  --fg: #ebdbb2;
+  --muted: #a89984;
+  --faint: #504945;
+  --rule: rgb(235 219 178 / 0.07);
+  --hover: rgb(235 219 178 / 0.06);
+  --active-line: rgb(235 219 178 / 0.03);
+  --selection: rgb(131 165 152 / 0.24);
+  --danger: #fb5440;
+  --scrim: rgb(0 0 0 / 0.5);
+  --shadow: 0 18px 50px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --syntax-keyword: #fb5440;
+  --syntax-string: #b8bb26;
+  --syntax-number: #d3869b;
+  --syntax-comment: #9a8d7f;
+  --syntax-function: #8ec07c;
+  --syntax-type: #fabd2f;
+  --swatch-accent: #83a598;
+}
+
+/* Catppuccin: Latte (light) and Mocha (dark). */
+/* Contrast nudge (same hue, lightness only; original value in parentheses):
+   --muted: #6c6f85 -> #696c82
+   --syntax-string: #40a02b -> #327d22
+   --syntax-number: #fe640b -> #bf4601
+   --syntax-comment: #7c7f93 -> #6a6c80
+   --syntax-function: #1e66f5 -> #1962f5
+   --syntax-type: #df8e1d -> #996114
+*/
+[data-theme='catppuccin'][data-mode='light'] {
+  color-scheme: light;
+  --bg: #eff1f5;
+  --fg: #4c4f69;
+  --muted: #696c82;
+  --faint: #acb0be;
+  --rule: rgb(76 79 105 / 0.08);
+  --hover: rgb(76 79 105 / 0.05);
+  --active-line: rgb(76 79 105 / 0.04);
+  --selection: rgb(30 102 245 / 0.2);
+  --danger: #d20f39;
+  --scrim: rgb(0 0 0 / 0.32);
+  --shadow: 0 18px 50px -12px rgb(0 0 0 / 0.22), 0 2px 8px rgb(0 0 0 / 0.08);
+  --syntax-keyword: #8839ef;
+  --syntax-string: #327d22;
+  --syntax-number: #bf4601;
+  --syntax-comment: #6a6c80;
+  --syntax-function: #1962f5;
+  --syntax-type: #996114;
+  --swatch-accent: #1e66f5;
+}
+
+/* Contrast nudge (same hue, lightness only; original value in parentheses):
+   --syntax-comment: #7f849c -> #81869d
+*/
+[data-theme='catppuccin'][data-mode='dark'] {
+  color-scheme: dark;
+  --bg: #1e1e2e;
+  --fg: #cdd6f4;
+  --muted: #a6adc8;
+  --faint: #45475a;
+  --rule: rgb(205 214 244 / 0.07);
+  --hover: rgb(205 214 244 / 0.06);
+  --active-line: rgb(205 214 244 / 0.03);
+  --selection: rgb(137 180 250 / 0.24);
+  --danger: #f38ba8;
+  --scrim: rgb(0 0 0 / 0.5);
+  --shadow: 0 18px 50px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --syntax-keyword: #cba6f7;
+  --syntax-string: #a6e3a1;
+  --syntax-number: #fab387;
+  --syntax-comment: #81869d;
+  --syntax-function: #89b4fa;
+  --syntax-type: #f9e2af;
+  --swatch-accent: #89b4fa;
+}

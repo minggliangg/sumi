@@ -1,4 +1,5 @@
 import { createFontSize } from './editor/font-size.ts'
+import { createAppearance } from './appearance.ts'
 import Recovery from './components/Recovery.tsx'
 import { createRecovery } from './storage/recovery.ts'
 import { exportFilename, languageForFilename, readImportedFile } from './editor/files.ts'
@@ -23,6 +24,7 @@ function loadLayout(): TabLayout {
 
 export default function App() {
   const font = createFontSize()
+  const appearance = createAppearance()
   const model = createTabs()
   const persistence = createRecovery(model)
   const tabs = { ...model, ...persistence }
@@ -93,6 +95,7 @@ export default function App() {
       case 'next': tabs.cycle(1); break
       case 'jump': tabs.selectIndex(shortcut.index); break
       case 'layout': toggleLayout(); break
+      case 'lines': appearance.setLineNumbers(!appearance.lineNumbers()); break
       case 'format': void tabs.formatDocument(tabs.activeId()); break
       case 'help': setShowShortcuts(true); break
     }
@@ -116,7 +119,7 @@ export default function App() {
   })
 
   return (
-    <main class="app" style={{ '--editor-font-size': `${font.size()}px` }} data-tab-layout={layout()} inert={update.updating()} aria-busy={update.updating()}>
+    <main class="app" style={{ '--editor-font-size': `${font.size()}px` }} data-tab-layout={layout()} data-line-numbers={appearance.lineNumbers()} inert={update.updating()} aria-busy={update.updating()}>
       <TabBar
         tabs={tabs}
         layout={layout()}
@@ -137,11 +140,11 @@ export default function App() {
       />
       <input ref={importInput} type="file" aria-label="Import files" multiple hidden onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); importing = importing.then(() => importFiles(files)) }} />
       <Show when={tabs.ready()} fallback={<div class="editor" role="status">Restoring drafts…</div>}>
-        <Editor tabs={tabs} onCursor={setCursor} fontSize={font.size()} />
+        <Editor tabs={tabs} onCursor={setCursor} fontSize={font.size()} lineNumbers={appearance.lineNumbers()} />
       </Show>
       <Show when={fileError()}><div class="file-error" role="status">{fileError()}</div></Show>
       <Recovery tabs={tabs} open={recoveryOpen()} onClose={() => setRecoveryOpen(false)} />
-      <StatusBar cursor={cursor()} update={update} tabs={tabs} font={font} />
+      <StatusBar cursor={cursor()} update={update} tabs={tabs} font={font} appearance={appearance} />
       <ShortcutHelp open={showShortcuts()} onClose={() => setShowShortcuts(false)} />
     </main>
   )
