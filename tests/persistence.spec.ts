@@ -184,16 +184,16 @@ test('formatting an inactive tab saves the result without another tab change', a
 
     release()
     const storedFirstDocument = async () => page.evaluate(() => new Promise<string | undefined>((resolve, reject) => {
-      const request = indexedDB.open('sumi:workspaces', 1)
+      const request = indexedDB.open('sumi:workspaces', 2)
       request.onerror = () => reject(request.error)
       request.onsuccess = () => {
         const database = request.result
-        const read = database.transaction('workspaces', 'readonly').objectStore('workspaces').getAll()
+        const read = database.transaction('texts', 'readonly').objectStore('texts').getAll()
         read.onerror = () => { database.close(); reject(read.error) }
         read.onsuccess = () => {
-          const workspace = (read.result as { documents: { text: string }[] }[])[0]
+          const rows = read.result as { text: string }[]
           database.close()
-          resolve(workspace?.documents.find(document => document.text.startsWith('const answer'))?.text)
+          resolve(rows.find(row => row.text.startsWith('const answer'))?.text)
         }
       }
     }))

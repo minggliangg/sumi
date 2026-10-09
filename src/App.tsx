@@ -11,14 +11,24 @@ import ShortcutHelp from './components/ShortcutHelp.tsx'
 import { matchShortcut } from './shortcuts.ts'
 import { createTabs } from './tabs/tabs.ts'
 import { createAppUpdate } from './updates.ts'
+import { COMPACT_QUERY, createMediaQuery } from './media.ts'
 
 const LAYOUT_KEY = 'sumi:tab-layout'
+const TABS_HIDDEN_KEY = 'sumi:tabs-hidden'
 
 function loadLayout(): TabLayout {
   try {
     return localStorage.getItem(LAYOUT_KEY) === 'vertical' ? 'vertical' : 'horizontal'
   } catch {
     return 'horizontal'
+  }
+}
+
+function loadTabsHidden(): boolean {
+  try {
+    return localStorage.getItem(TABS_HIDDEN_KEY) === 'true'
+  } catch {
+    return false
   }
 }
 
@@ -62,6 +72,10 @@ export default function App() {
   }
   const [cursor, setCursor] = createSignal<Cursor>({ line: 1, col: 1, selected: 0 })
   const [layout, setLayout] = createSignal<TabLayout>(loadLayout())
+  const [tabsHidden, setTabsHidden] = createSignal(loadTabsHidden())
+  const compact = createMediaQuery(COMPACT_QUERY)
+  // Phones already hide vertical tabs behind their drawer, so the sidebar toggle is desktop-only.
+  const canHideTabs = () => layout() === 'vertical' && !compact()
   const [showShortcuts, setShowShortcuts] = createSignal(false)
   const update = createAppUpdate(async () => { await importing; tabs.cancelFormatting(); await tabs.flush() })
 
@@ -70,6 +84,17 @@ export default function App() {
     setLayout(next)
     try {
       localStorage.setItem(LAYOUT_KEY, next)
+    } catch {
+      // Storage unavailable; the choice just won't persist.
+    }
+  }
+
+  function toggleTabs() {
+    if (!canHideTabs()) return
+    const next = !tabsHidden()
+    setTabsHidden(next)
+    try {
+      localStorage.setItem(TABS_HIDDEN_KEY, String(next))
     } catch {
       // Storage unavailable; the choice just won't persist.
     }
@@ -95,6 +120,7 @@ export default function App() {
       case 'next': tabs.cycle(1); break
       case 'jump': tabs.selectIndex(shortcut.index); break
       case 'layout': toggleLayout(); break
+      case 'sidebar': toggleTabs(); break
       case 'lines': appearance.setLineNumbers(!appearance.lineNumbers()); break
       case 'format': void tabs.formatDocument(tabs.activeId()); break
       case 'help': setShowShortcuts(true); break
@@ -119,7 +145,7 @@ export default function App() {
   })
 
   return (
-    <main class="app" style={{ '--editor-font-size': `${font.size()}px` }} data-tab-layout={layout()} data-line-numbers={appearance.lineNumbers()} inert={update.updating()} aria-busy={update.updating()}>
+    <main class="app" style={{ '--editor-font-size': `${font.size()}px` }} data-tab-layout={layout()} data-tabs-hidden={tabsHidden() && canHideTabs()} data-line-numbers={appearance.lineNumbers()} inert={update.updating()} aria-busy={update.updating()}>
       <TabBar
         tabs={tabs}
         layout={layout()}
@@ -144,7 +170,7 @@ export default function App() {
       </Show>
       <Show when={fileError()}><div class="file-error" role="status">{fileError()}</div></Show>
       <Recovery tabs={tabs} open={recoveryOpen()} onClose={() => setRecoveryOpen(false)} />
-      <StatusBar cursor={cursor()} update={update} tabs={tabs} font={font} appearance={appearance} />
+      <StatusBar cursor={cursor()} update={update} tabs={tabs} font={font} appearance={appearance} tabsToggle={{ available: canHideTabs(), hidden: tabsHidden(), toggle: toggleTabs }} />
       <ShortcutHelp open={showShortcuts()} onClose={() => setShowShortcuts(false)} />
     </main>
   )

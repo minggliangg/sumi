@@ -2,7 +2,7 @@ import Settings from './Settings.tsx'
 import type { Appearance } from '../appearance.ts'
 import type { createFontSize } from '../editor/font-size.ts'
 import { createMemo, Show } from 'solid-js'
-import { LoaderCircle, WandSparkles } from 'lucide-solid'
+import { LoaderCircle, PanelLeftClose, PanelLeftOpen, WandSparkles } from 'lucide-solid'
 import LanguagePicker from './LanguagePicker.tsx'
 import type { Tabs as TabModel } from '../tabs/tabs.ts'
 import type { createRecovery } from '../storage/recovery.ts'
@@ -10,7 +10,7 @@ type Tabs = TabModel & ReturnType<typeof createRecovery>
 import type { Cursor } from './Editor.tsx'
 import type { createAppUpdate } from '../updates.ts'
 
-export default function StatusBar(props: { cursor: Cursor; update: ReturnType<typeof createAppUpdate>; tabs: Tabs; font: ReturnType<typeof createFontSize>; appearance: Appearance }) {
+export default function StatusBar(props: { cursor: Cursor; update: ReturnType<typeof createAppUpdate>; tabs: Tabs; font: ReturnType<typeof createFontSize>; appearance: Appearance; tabsToggle: { available: boolean; hidden: boolean; toggle: () => void } }) {
   const active = createMemo(() => props.tabs.tabs.find(tab => tab.id === props.tabs.activeId()))
   const canFormat = createMemo(() => {
     const tab = active()
@@ -27,6 +27,19 @@ export default function StatusBar(props: { cursor: Cursor; update: ReturnType<ty
   return (
     <div class="status" aria-live="off">
       <div class="status-group">
+        <Show when={props.tabsToggle.available}>
+          <button
+            type="button"
+            class="status-button tabs-toggle"
+            aria-expanded={!props.tabsToggle.hidden}
+            aria-controls="tab-panel"
+            title={`${props.tabsToggle.hidden ? 'Show' : 'Hide'} vertical tabs (Alt+Shift+B)`}
+            onClick={props.tabsToggle.toggle}
+          >
+            {props.tabsToggle.hidden ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
+            <span class="status-label">{props.tabsToggle.hidden ? 'Show tabs' : 'Hide tabs'}</span>
+          </button>
+        </Show>
         <span class="storage" data-storage-status={props.tabs.storageStatus()} title={props.tabs.storageEstimate() ? `Browser storage: ${(props.tabs.storageEstimate()!.usage / 1048576).toFixed(1)} MiB used of ${(props.tabs.storageEstimate()!.quota / 1048576).toFixed(0)} MiB estimated quota` : storageLabel()}>
           <span class="status-dot" aria-hidden="true" />
           <span class="storage-text">{storageLabel()}</span>

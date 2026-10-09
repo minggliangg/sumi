@@ -1,8 +1,29 @@
 import { createSignal, onCleanup, onMount } from 'solid-js'
-import type { createTabs } from '../tabs/tabs.ts'
-import { ConflictError, openWorkspaceStore, type WorkspaceStore, type StoredWorkspace } from './workspace.ts'
+import type { Text as EditorText } from '@codemirror/state'
+import type { createTabs, DocumentSnapshot, TabsSnapshot } from '../tabs/tabs.ts'
+import { ConflictError, openWorkspaceStore, type DocumentMeta, type StoredDocument, type WorkspaceChange, type WorkspaceStore, type StoredWorkspace } from './workspace.ts'
 
 const SESSION_KEY = 'sumi:workspace'
+
+// What the store last confirmed for one document. A missing field means it is not stored yet.
+interface Baseline {
+  meta?: string
+  content?: EditorText
+}
+
+interface Described {
+  id: string
+  meta: DocumentMeta
+  key: string
+  content: EditorText
+}
+
+type Section = DocumentMeta['section']
+
+function toStored({ content, ...document }: DocumentSnapshot): StoredDocument {
+  return { ...document, text: content.toString() }
+}
+
 export function createRecovery(tabs: ReturnType<typeof createTabs>) {
   const [ready, setReady] = createSignal(false)
   const [storageStatus, setStatus] = createSignal<'loading' | 'saving' | 'saved' | 'error'>('loading')
@@ -20,6 +41,11 @@ export function createRecovery(tabs: ReturnType<typeof createTabs>) {
   let saving: Promise<void> | undefined
   let initializing: Promise<void> | undefined
   let conflictPending = false
+  let baseline = new Map<string, Baseline>()
+  let committedActive = ''
+  // Tab order for open documents. A document keeps its sequence while it stays in the same section.
+  const sequences = new Map<string, { section: Section; sequence: number }>()
+  let lastSequence = 0
 
   function report(error: unknown) {
     setStatus('error')
@@ -46,6 +72,54 @@ export function createRecovery(tabs: ReturnType<typeof createTabs>) {
     clearTimeout(timer)
     if (storageStatus() !== 'error') timer = setTimeout(() => { void flush().catch(() => undefined) }, 300)
   }
+  function sequenceFor(id: string, section: Section) {
+    const current = sequences.get(id)
+    if (current?.section === section) return current.sequence
+    const sequence = ++lastSequence
+    sequences.set(id, { section, sequence })
+    return sequence
+  }
+  function remember(document: StoredDocument, section: Section) {
+    const sequence = document.sequence ?? 0
+    sequences.set(document.id, { section, sequence })
+    lastSequence = Math.max(lastSequence, sequence)
+  }
+  function describeOne(document: DocumentSnapshot, section: Section): Described {
+    const meta: DocumentMeta = {
+      id: document.id, section, sequence: sequenceFor(document.id, section), languageMode: document.languageMode,
+      selection: document.selection, scrollTop: document.scrollTop, filename: document.filename, closedAt: document.closedAt,
+    }
+    return { id: document.id, meta, key: JSON.stringify(meta), content: document.content }
+  }
+  function describe(local: TabsSnapshot): Described[] {
+    const described = [
+      ...local.documents.map(document => describeOne(document, 'open')),
+      ...local.closed.map(document => describeOne(document, 'closed')),
+    ]
+    const present = new Set(described.map(entry => entry.id))
+    for (const id of sequences.keys()) if (!present.has(id)) sequences.delete(id)
+    return described
+  }
+  // Only rows that differ from the store are written. Text is compared by
+  // identity, so a tab switch or scroll never rewrites document text.
+  function planChange(): { write?: WorkspaceChange; next: Map<string, Baseline>; active: string } {
+    const local = tabs.snapshot()
+    const described = describe(local)
+    const present = new Set(described.map(entry => entry.id))
+    const remove = [...baseline.keys()].filter(id => !present.has(id))
+    const documents: DocumentMeta[] = []
+    const texts: { id: string; text: string }[] = []
+    const next = new Map<string, Baseline>()
+    for (const entry of described) {
+      const previous = baseline.get(entry.id)
+      if (previous?.meta !== entry.key) documents.push(entry.meta)
+      if (previous?.content !== entry.content) texts.push({ id: entry.id, text: entry.content.toString() })
+      next.set(entry.id, { meta: entry.key, content: entry.content })
+    }
+    const active = local.activeId
+    if (!documents.length && !texts.length && !remove.length && active === committedActive) return { next, active }
+    return { write: { id: workspaceId, activeId: active, updatedAt: Date.now(), documents, texts, remove }, next, active }
+  }
   async function initialize() {
     if (initializing) return initializing
     initializing = (async () => {
@@ -64,7 +138,7 @@ export function createRecovery(tabs: ReturnType<typeof createTabs>) {
           if (unlock) {
             release = unlock
             // An earlier window may have committed while this claim waited.
-            chosen = (await store.list()).find(row => row.id === record.id)
+            chosen = await store.load(record.id)
             if (chosen) break
             release(); release = undefined
           }
@@ -73,12 +147,24 @@ export function createRecovery(tabs: ReturnType<typeof createTabs>) {
         workspaceId = chosen?.id ?? crypto.randomUUID()
         if (!release) release = await claim(workspaceId) ?? undefined
         revision = chosen?.revision ?? 0
+        baseline = new Map()
+        committedActive = ''
         // If storage was unavailable at launch, keep new text typed meanwhile
         // and append it to the recovered workspace rather than replacing it.
         const local = tabs.snapshot()
         if (chosen) {
-          const unsaved = local.documents.filter(document => document.text.length > 0 || document.filename || document.languageMode !== 'auto')
-          tabs.restore({ documents: [...chosen.documents, ...unsaved], activeId: unsaved.length ? local.activeId : chosen.activeId, closed: [...local.closed, ...chosen.closed].filter((document, index, all) => all.findIndex(other => other.id === document.id) === index).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).slice(0, 20) })
+          for (const document of chosen.documents) remember(document, 'open')
+          for (const document of chosen.closed) remember(document, 'closed')
+          const unsaved = local.documents.filter(document => document.content.length > 0 || document.filename || document.languageMode !== 'auto').map(toStored)
+          tabs.restore({ documents: [...chosen.documents, ...unsaved], activeId: unsaved.length ? local.activeId : chosen.activeId, closed: [...local.closed.map(toStored), ...chosen.closed].filter((document, index, all) => all.findIndex(other => other.id === document.id) === index).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).slice(0, 20) })
+          // Documents already in storage start clean, so launch writes nothing unless something differs.
+          const stored = new Set([...chosen.documents, ...chosen.closed].map(document => document.id))
+          const restored = describe(tabs.snapshot())
+          const present = new Set(restored.map(entry => entry.id))
+          for (const entry of restored) if (stored.has(entry.id)) baseline.set(entry.id, { meta: entry.key, content: entry.content })
+          // Stored documents the restore dropped (older closed entries) are removed by the next save.
+          for (const id of stored) if (!present.has(id)) baseline.set(id, {})
+          committedActive = chosen.activeId
         }
         try { sessionStorage.setItem(SESSION_KEY, workspaceId) } catch { /* lock/CAS still protects writes */ }
         initialized = true
@@ -109,9 +195,13 @@ export function createRecovery(tabs: ReturnType<typeof createTabs>) {
     saving = (async () => {
       while (!disposed && dirty !== committed) {
         const version = dirty
-        const data = tabs.snapshot()
-        setStatus('saving')
-        revision = await store!.save({ id: workspaceId, revision, ...data, updatedAt: Date.now() }, revision)
+        const plan = planChange()
+        if (plan.write) {
+          setStatus('saving')
+          revision = await store!.commit(plan.write, revision)
+        }
+        baseline = plan.next
+        committedActive = plan.active
         committed = version
       }
       if (!disposed) {
@@ -142,6 +232,9 @@ export function createRecovery(tabs: ReturnType<typeof createTabs>) {
           if (!release) throw new Error('Could not claim a new workspace for these drafts. Retry saving.')
           workspaceId = forkId
           revision = 0
+          // The fork is a new workspace, so nothing is baselined and every document is written.
+          baseline = new Map()
+          committedActive = ''
           dirty++
           try { sessionStorage.setItem(SESSION_KEY, workspaceId) } catch { /* the new workspace is still saved locally */ }
           conflictPending = false

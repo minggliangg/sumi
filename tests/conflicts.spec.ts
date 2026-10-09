@@ -7,21 +7,21 @@ async function saved(page: Page) {
   await expect(storage(page)).toHaveAttribute('data-storage-status', 'saved')
 }
 
-async function workspaces(page: Page) {
+async function texts(page: Page) {
   return page.evaluate(async () => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('sumi:workspaces', 1)
+      const request = indexedDB.open('sumi:workspaces', 2)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
     const rows = await new Promise<unknown[]>((resolve, reject) => {
-      const transaction = database.transaction('workspaces', 'readonly')
-      const request = transaction.objectStore('workspaces').getAll()
+      const transaction = database.transaction('texts', 'readonly')
+      const request = transaction.objectStore('texts').getAll()
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
     database.close()
-    return rows as { id: string; revision: number; documents: { text: string }[] }[]
+    return rows as { workspaceId: string; id: string; text: string }[]
   })
 }
 
@@ -41,8 +41,8 @@ test('a revision conflict retries into an independent workspace and preserves bo
   const originalId = await page.evaluate(() => sessionStorage.getItem('sumi:workspace'))
   expect(await second.evaluate(() => sessionStorage.getItem('sumi:workspace'))).toBe(originalId)
 
-  // The second window's startup save advances the shared row revision. It
-  // can write next; the older first window must safely fork on its next save.
+  // Opening the second window writes nothing. Its first edit advances the shared
+  // revision, so the older first window must safely fork on its next save.
   await editor(second).fill('second window draft')
   await saved(second)
   await editor(page).fill('first window draft')
@@ -56,11 +56,9 @@ test('a revision conflict retries into an independent workspace and preserves bo
   expect(forkId).toBeTruthy()
   expect(forkId).not.toBe(originalId)
 
-  const records = await workspaces(page)
-  const original = records.find(workspace => workspace.id === originalId)
-  const fork = records.find(workspace => workspace.id === forkId)
-  expect(original?.documents.some(document => document.text === 'second window draft')).toBe(true)
-  expect(fork?.documents.some(document => document.text === 'first window draft')).toBe(true)
+  const rows = await texts(page)
+  expect(rows.some(row => row.workspaceId === originalId && row.text === 'second window draft')).toBe(true)
+  expect(rows.some(row => row.workspaceId === forkId && row.text === 'first window draft')).toBe(true)
 
   await page.reload()
   await saved(page)
