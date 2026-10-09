@@ -101,9 +101,17 @@ function languageBundleReport(): Plugin {
           formatterPacks[key] = { ...size(files), entryFile: previous?.entryFile ?? file }
         }
       }
-      const report = { initialJavaScript: size(initialJavaScript), languagePacks, combinedLanguages: size(combined), formatterPacks, combinedFormatters: size(combinedFormatters) }
+      const previewFiles = new Set<string>()
+      for (const chunk of Object.values(bundle)) {
+        if (chunk.type === 'chunk' && Object.keys(chunk.modules).some(id => /\/node_modules\/(markdown-it|dompurify)\//.test(id))) {
+          visit(chunk.fileName, previewFiles)
+        }
+      }
+      initialJavaScript.forEach(file => previewFiles.delete(file))
+      const previewPacks = { markdown: size(previewFiles) }
+      const report = { initialJavaScript: size(initialJavaScript), languagePacks, combinedLanguages: size(combined), formatterPacks, combinedFormatters: size(combinedFormatters), previewPacks }
       this.emitFile({ type: 'asset', fileName: 'language-bundle-report.json', source: JSON.stringify(report, null, 2) })
-      this.emitFile({ type: 'asset', fileName: languageManifest, source: JSON.stringify({ languagePacks, formatterPacks }) })
+      this.emitFile({ type: 'asset', fileName: languageManifest, source: JSON.stringify({ languagePacks, formatterPacks, previewPacks }) })
       console.info(`Language payload: ${report.combinedLanguages.minifiedBytes} bytes minified, ${report.combinedLanguages.gzipBytes} bytes gzip`)
       console.info(`Formatter payload: ${report.combinedFormatters.minifiedBytes} bytes minified, ${report.combinedFormatters.gzipBytes} bytes gzip`)
     },

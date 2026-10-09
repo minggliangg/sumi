@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount, Show } from 'solid-js'
+import { createEffect, createSignal, on, onCleanup, onMount, Show } from 'solid-js'
 import { Eye, PenLine } from 'lucide-solid'
 import type { Tabs } from '../tabs/tabs.ts'
 import Editor, { type Cursor } from './Editor.tsx'
@@ -22,6 +22,8 @@ interface Props {
 export default function EditorArea(props: Props) {
   const [width, setWidth] = createSignal(0)
   let frame!: HTMLDivElement
+  let focusFrame: number | undefined
+  onCleanup(() => { if (focusFrame !== undefined) cancelAnimationFrame(focusFrame) })
 
   onMount(() => {
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
@@ -36,17 +38,20 @@ export default function EditorArea(props: Props) {
 
   // The editor stays mounted while the preview covers it, so cursor, undo and scroll survive.
   function focusEditor() {
-    requestAnimationFrame(() => frame.querySelector<HTMLElement>('.cm-content')?.focus())
+    focusFrame = requestAnimationFrame(() => frame.querySelector<HTMLElement>('.cm-content')?.focus())
   }
+
+  // Covers both the button and the global keyboard shortcut.
+  createEffect(on(() => props.previewOpen, open => {
+    if (!open) focusEditor()
+  }, { defer: true }))
 
   function closePreview() {
     props.onClosePreview()
-    focusEditor()
   }
 
   function togglePreview() {
     props.onTogglePreview()
-    if (props.previewOpen) focusEditor()
   }
 
   return (

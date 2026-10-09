@@ -1,4 +1,5 @@
 import type DOMPurify from 'dompurify'
+import { prepareAssets, waitForWorker } from '../editor/languages.ts'
 
 // Loaded on first preview only, so the renderer stays out of the startup bundle.
 type Pipeline = { md: ReturnType<typeof import('markdown-it').default>; purify: typeof DOMPurify }
@@ -9,6 +10,8 @@ let pipeline: Promise<Pipeline> | undefined
 const REMOTE = /^(?:https?:)?\/\//i
 
 async function load(): Promise<Pipeline> {
+  await waitForWorker()
+  await prepareAssets('previewPacks', 'markdown')
   const [{ default: markdownIt }, { default: purify }] = await Promise.all([import('markdown-it'), import('dompurify')])
   // html: false escapes raw HTML in the source; the sanitizer below is a second layer.
   const md = markdownIt({ html: false, linkify: false, typographer: false })
@@ -32,6 +35,9 @@ async function load(): Promise<Pipeline> {
 }
 
 export function renderMarkdown(source: string): Promise<string> {
-  pipeline ??= load()
+  pipeline ??= load().catch(error => {
+    pipeline = undefined
+    throw error
+  })
   return pipeline.then(({ md, purify }) => purify.sanitize(md.render(source)))
 }

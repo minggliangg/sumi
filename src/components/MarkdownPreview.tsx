@@ -16,6 +16,7 @@ interface Props {
 export default function MarkdownPreview(props: Props) {
   const [html, setHtml] = createSignal('')
   const [paused, setPaused] = createSignal(false)
+  const [failed, setFailed] = createSignal(false)
   // Set when the reader asks for a large document; cleared when the tab changes.
   let allowLarge = false
   let token = 0
@@ -25,6 +26,7 @@ export default function MarkdownPreview(props: Props) {
     const id = props.tabs.activeId()
     const session = props.tabs.session(id)
     if (!session) return
+    setFailed(false)
     if (force) allowLarge = true
     if (!allowLarge && session.state.doc.length > PREVIEW_LIMIT) {
       token++
@@ -33,9 +35,13 @@ export default function MarkdownPreview(props: Props) {
     }
     setPaused(false)
     const current = ++token
-    const rendered = await renderMarkdown(session.state.doc.toString())
-    // A newer render or a tab change has superseded this one.
-    if (current === token) setHtml(rendered)
+    try {
+      const rendered = await renderMarkdown(session.state.doc.toString())
+      // A newer render or a tab change has superseded this one.
+      if (current === token) setHtml(rendered)
+    } catch {
+      if (current === token) setFailed(true)
+    }
   }
 
   // Switching tabs renders immediately so the pane never shows the previous document.
@@ -75,7 +81,14 @@ export default function MarkdownPreview(props: Props) {
           </div>
         }
       >
-        <article class="preview-body" innerHTML={html()} />
+        <Show when={!failed()} fallback={
+          <div class="preview-paused" role="status">
+            <p>Preview could not load. Check your connection and retry.</p>
+            <button type="button" class="status-button" onClick={() => void render()}>Retry preview</button>
+          </div>
+        }>
+          <article class="preview-body" innerHTML={html()} />
+        </Show>
       </Show>
     </section>
   )

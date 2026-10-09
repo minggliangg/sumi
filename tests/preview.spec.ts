@@ -68,6 +68,9 @@ test('wide windows split the editor and preview, sanitize output and follow edit
   await page.getByRole('button', { name: 'Hide preview', exact: true }).click()
   await expect(page.locator('.editor-area')).toHaveAttribute('data-preview', 'off')
   await expect(editor(page)).toBeVisible()
+  await expect(editor(page)).toBeFocused()
+  await page.keyboard.type('resumed ')
+  await expect(editor(page)).toContainText('resumed ')
 })
 
 test('narrow windows swap between the editor and a full-width preview', async ({ page }) => {
@@ -87,6 +90,9 @@ test('narrow windows swap between the editor and a full-width preview', async ({
   await toggle(page).click()
   await expect(page.locator('.editor-area')).toHaveAttribute('data-preview', 'off')
   await expect(editor(page)).toBeVisible()
+  await expect(editor(page)).toBeFocused()
+  await page.keyboard.type('resumed ')
+  await expect(editor(page)).toContainText('resumed ')
 })
 
 test('Alt+Shift+P toggles the preview for Markdown tabs only', async ({ page }) => {
@@ -118,4 +124,38 @@ test('very large documents pause the preview until the reader asks for it', asyn
   await expect(page.locator('.preview-paused')).toBeVisible()
   await page.getByRole('button', { name: 'Render preview', exact: true }).click()
   await expect(preview(page).getByRole('heading', { name: 'big' })).toBeVisible()
+})
+
+test('preview download failure is visible and retryable', async ({ browser }) => {
+  const context = await browser.newContext({ serviceWorkers: 'block' })
+  try {
+    const page = await context.newPage()
+    const parser = '**/assets/markdown-it-*.js'
+    await context.route(parser, route => route.abort())
+    await page.goto('./')
+    await saved(page)
+    await editor(page).fill('# Retry works')
+    await chooseMarkdown(page)
+    await toggle(page).click()
+    await expect(page.getByRole('button', { name: 'Retry preview', exact: true })).toBeVisible()
+    await context.unroute(parser)
+    await page.getByRole('button', { name: 'Retry preview', exact: true }).click()
+    await expect(preview(page).getByRole('heading', { name: 'Retry works' })).toBeVisible()
+  } finally {
+    await context.close()
+  }
+})
+
+test('closing full-width preview with the shortcut restores typing focus', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('./')
+  await saved(page)
+  await editor(page).fill('# Keyboard')
+  await chooseMarkdown(page)
+  await toggle(page).click()
+  await expect(editor(page)).toBeHidden()
+  await page.keyboard.press('Alt+Shift+P')
+  await expect(editor(page)).toBeFocused()
+  await page.keyboard.type('resumed ')
+  await expect(editor(page)).toContainText('resumed ')
 })
