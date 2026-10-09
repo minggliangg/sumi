@@ -18,6 +18,7 @@ function cursorOf(state: EditorState): Cursor {
 interface Props {
   tabs: Tabs
   onCursor: (cursor: Cursor) => void
+  fontSize: number
 }
 
 export default function Editor(props: Props) {
@@ -89,6 +90,19 @@ export default function Editor(props: Props) {
         if (!tabHasFocus) view.focus()
       }),
     )
+
+    createEffect(on(() => props.fontSize, () => {
+      const top = view.scrollDOM.scrollTop
+      const id = shownId
+      const version = shownVersion
+      view.requestMeasure({
+        key: 'font-size',
+        read: () => top,
+        write: value => {
+          if (!disposed && tabs.activeId() === id && tabs.workspaceVersion() === version) view.scrollDOM.scrollTop = value
+        },
+      })
+    }, { defer: true }))
 
     props.onCursor(cursorOf(view.state))
     view.focus()

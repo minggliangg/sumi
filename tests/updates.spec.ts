@@ -8,8 +8,14 @@ async function updateServer() {
   const worker = await readFile('dist/sw.js', 'utf8')
   let version = 1
   let allowActivation = true
+  let failCheck = false
   const server = createServer(async (request, response) => {
     if (request.url === '/sumi/sw.js') {
+      if (failCheck) {
+        response.writeHead(503, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' })
+        response.end('throw new Error("test update check failure")')
+        return
+      }
       response.writeHead(200, { 'Content-Type': 'text/javascript', 'Cache-Control': 'no-store' })
       response.end(`${allowActivation ? worker : worker.replace('"SKIP_WAITING"', '"TEST_IGNORE_SKIP_WAITING"')}\n// test version ${version}`)
       return
@@ -29,6 +35,7 @@ async function updateServer() {
   return {
     url: `http://127.0.0.1:${address.port}/sumi/`,
     next(stall = false) { version++; allowActivation = !stall },
+    fail() { failCheck = true },
     close: () => new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())),
   }
 }
@@ -64,6 +71,42 @@ async function acceptUpdate(page: Page) {
     page.getByRole('button', { name: 'Update available' }).click(),
   ])
 }
+
+test('manual update check reports current version and detects an already waiting worker', async ({ browser }) => {
+  const server = await updateServer()
+  const context = await browser.newContext()
+  try {
+    const page = await context.newPage()
+    await openApp(page, server.url)
+    await page.getByRole('button', { name: 'Text size', exact: true }).click()
+    await page.getByRole('button', { name: 'Check for updates', exact: true }).click()
+    await expect(page.locator('.settings-updates').getByRole('status')).toContainText('This version is up to date.')
+
+    server.next()
+    await page.getByRole('button', { name: 'Check for updates', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Install update', exact: true })).toBeVisible()
+    await expect(page.locator('.settings-updates').getByRole('status')).toContainText('An update is ready to install.')
+  } finally {
+    await context.close()
+    await server.close()
+  }
+})
+
+test('manual update check reports a failed service worker request', async ({ browser }) => {
+  const server = await updateServer()
+  const context = await browser.newContext()
+  try {
+    const page = await context.newPage()
+    await openApp(page, server.url)
+    await page.getByRole('button', { name: 'Text size', exact: true }).click()
+    server.fail()
+    await page.getByRole('button', { name: 'Check for updates', exact: true }).click()
+    await expect(page.locator('.settings-updates').getByRole('status')).toContainText('Could not check for updates.')
+  } finally {
+    await context.close()
+    await server.close()
+  }
+})
 
 test('approved update restores this workspace and leaves other windows intact', async ({ browser }) => {
   const server = await updateServer()

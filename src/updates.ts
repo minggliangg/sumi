@@ -5,6 +5,8 @@ export function createAppUpdate(preserve: () => Promise<void>) {
   const [available, setAvailable] = createSignal(false)
   const [updating, setUpdating] = createSignal(false)
   const [error, setError] = createSignal('')
+  const [checkingUpdate, setCheckingUpdate] = createSignal(false)
+  const [checkMessage, setCheckMessage] = createSignal('')
   let registration: ServiceWorkerRegistration | undefined
   let activate: (() => Promise<void>) | undefined
   let readyToReload = false
@@ -31,6 +33,7 @@ export function createAppUpdate(preserve: () => Promise<void>) {
     if (disposed) return
     readyToReload = true
     setAvailable(true)
+    if (checkMessage()) setCheckMessage('An update is ready to install.')
     // Another window may activate the worker. Never reload this window
     // unless its user has explicitly approved updating its documents.
     if (updating() && preserved) reload()
@@ -52,12 +55,61 @@ export function createAppUpdate(preserve: () => Promise<void>) {
   async function check() {
     if (disposed || checking || !registration || !navigator.onLine) return
     checking = true
+    setCheckingUpdate(true)
     try {
       await registration.update()
     } catch {
       // A failed background check must not interrupt writing.
     } finally {
       checking = false
+      if (!disposed) setCheckingUpdate(false)
+    }
+  }
+
+  async function checkForUpdates() {
+    if (disposed) return
+    setCheckMessage('')
+    if (!('serviceWorker' in navigator)) {
+      setCheckMessage('Updates are unavailable in this browser.')
+      return
+    }
+    if (!navigator.onLine) {
+      setCheckMessage('Connect to the internet to check for updates.')
+      return
+    }
+    if (!registration) {
+      setCheckMessage('Update checking is still starting. Try again shortly.')
+      return
+    }
+    if (checking) {
+      setCheckMessage('An update check is already in progress.')
+      return
+    }
+
+    checking = true
+    setCheckingUpdate(true)
+    try {
+      await registration.update()
+      if (registration.waiting || readyToReload || available()) {
+        // A waiting worker may predate this explicit check. Surface it even if
+        // the registration callback did not report it in this page session.
+        onReadyToReload()
+        setCheckMessage('An update is ready to install.')
+      } else if (registration.installing) {
+        setCheckMessage('An update is downloading. It will appear when ready.')
+      } else {
+        setCheckMessage('This version is up to date.')
+      }
+    } catch {
+      if (registration.waiting) {
+        onReadyToReload()
+        setCheckMessage('Could not check for a newer version. An update is ready to install.')
+      } else {
+        setCheckMessage('Could not check for updates. Check your connection and try again.')
+      }
+    } finally {
+      checking = false
+      if (!disposed) setCheckingUpdate(false)
     }
   }
 
@@ -95,7 +147,10 @@ export function createAppUpdate(preserve: () => Promise<void>) {
     activate = registerSW({
       immediate: true,
       onNeedRefresh() {
-        if (!disposed) setAvailable(true)
+        if (!disposed) {
+          setAvailable(true)
+          if (checkMessage()) setCheckMessage('An update is ready to install.')
+        }
       },
       onNeedReload: onReadyToReload,
       onRegisteredSW(_url, next) {
@@ -117,5 +172,5 @@ export function createAppUpdate(preserve: () => Promise<void>) {
     document.removeEventListener('visibilitychange', onVisibilityChange)
   })
 
-  return { available, updating, error, apply }
+  return { available, updating, error, checking: checkingUpdate, checkMessage, check: checkForUpdates, apply }
 }

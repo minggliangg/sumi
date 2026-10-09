@@ -69,6 +69,12 @@ Formatting runs locally in a worker and downloads its formatter assets only when
 
 Formatting preserves selection and scroll position and creates one undoable edit. An unchanged result adds no undo history. Switching tabs during formatting applies a completed result only to its original tab; closing that tab discards the result. Format settings are currently fixed: two-space indentation, 80-column wrapping, double quotes and semicolons for Prettier-supported languages; Python uses Ruff with four-space indentation, 88-column wrapping and double quotes; SQL uses two-space indentation and uppercase keywords. Markdown embedded code blocks are not reformatted. Documents and language choices are automatically saved for recovery.
 
+## Text size
+
+The **Aa** button beside the language picker opens **Text size and updates**. Adjust editor text from 16 to 28 px in one-pixel steps, or reset to 16 px. The choice is remembered in this browser when storage is available. Changing size keeps text, selection and undo history intact. Editable text uses a 16 px minimum to mitigate iPhone Safari focus zoom; pinch zoom remains available.
+
+The same panel offers **Check for updates**, with a visible result and an Install update action when an update is ready. Updates still preserve drafts before reloading.
+
 ## GitHub Pages
 
 The public site is hosted at [minggliangg.github.io/sumi](https://minggliangg.github.io/sumi/).

@@ -1,3 +1,4 @@
+import { createFontSize } from './editor/font-size.ts'
 import Recovery from './components/Recovery.tsx'
 import { createRecovery } from './storage/recovery.ts'
 import { exportFilename, languageForFilename, readImportedFile } from './editor/files.ts'
@@ -21,6 +22,7 @@ function loadLayout(): TabLayout {
 }
 
 export default function App() {
+  const font = createFontSize()
   const model = createTabs()
   const persistence = createRecovery(model)
   const tabs = { ...model, ...persistence }
@@ -114,7 +116,7 @@ export default function App() {
   })
 
   return (
-    <main class="app" data-tab-layout={layout()} inert={update.updating()} aria-busy={update.updating()}>
+    <main class="app" style={{ '--editor-font-size': `${font.size()}px` }} data-tab-layout={layout()} inert={update.updating()} aria-busy={update.updating()}>
       <TabBar
         tabs={tabs}
         layout={layout()}
@@ -135,11 +137,11 @@ export default function App() {
       />
       <input ref={importInput} type="file" aria-label="Import files" multiple hidden onChange={(event) => { const files = Array.from(event.currentTarget.files ?? []); importing = importing.then(() => importFiles(files)) }} />
       <Show when={tabs.ready()} fallback={<div class="editor" role="status">Restoring drafts…</div>}>
-        <Editor tabs={tabs} onCursor={setCursor} />
+        <Editor tabs={tabs} onCursor={setCursor} fontSize={font.size()} />
       </Show>
       <Show when={fileError()}><div class="file-error" role="status">{fileError()}</div></Show>
       <Recovery tabs={tabs} open={recoveryOpen()} onClose={() => setRecoveryOpen(false)} />
-      <StatusBar cursor={cursor()} update={update} tabs={tabs} />
+      <StatusBar cursor={cursor()} update={update} tabs={tabs} font={font} />
       <ShortcutHelp open={showShortcuts()} onClose={() => setShowShortcuts(false)} />
     </main>
   )

@@ -9,7 +9,7 @@ const theme = EditorView.theme({
     height: '100%',
     color: 'var(--fg)',
     backgroundColor: 'var(--bg)',
-    fontSize: '15px',
+    fontSize: 'var(--editor-font-size, 16px)',
   },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': {

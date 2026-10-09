@@ -123,7 +123,6 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
     const generation = ++current.generation
     configure(id, [])
     metadata(id, { resolvedLanguage: language, languageStatus: language ? 'loading' : 'plain' })
-    changed()
     if (!language) return
     void loadLanguage(language).then(extension => {
       if (disposed || languageSessions.get(id) !== current || current.generation !== generation) return
@@ -254,7 +253,7 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
   }
 
   function select(id: string) {
-    if (sessions.has(id)) { setActiveId(id); changed() }
+    if (sessions.has(id) && activeId() !== id) { setActiveId(id); changed() }
   }
 
   function selectIndex(index: number) {
@@ -285,7 +284,13 @@ export function createTabs(beforeClose: (state: EditorState) => boolean = () => 
   }
 
   function saveSession(id: string, value: TabSession) {
-    if (sessions.has(id)) { sessions.set(id, { ...sessions.get(id)!, ...value }); changed() }
+    const previous = sessions.get(id)
+    if (!previous) return
+    sessions.set(id, { ...previous, ...value })
+    // Syntax/theme effects and runtime scroll anchors are not stored data.
+    // Only document, selection or viewport changes need an autosave.
+    if (previous.state.doc !== value.state.doc || !previous.state.selection.eq(value.state.selection)
+      || (value.scrollTop !== undefined && previous.scrollTop !== value.scrollTop)) changed()
   }
 
   function hasContent() {

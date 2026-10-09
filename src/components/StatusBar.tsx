@@ -1,3 +1,5 @@
+import TextSettings from './TextSettings.tsx'
+import type { createFontSize } from '../editor/font-size.ts'
 import { createMemo, Show } from 'solid-js'
 import LanguagePicker from './LanguagePicker.tsx'
 import type { Tabs as TabModel } from '../tabs/tabs.ts'
@@ -6,7 +8,7 @@ type Tabs = TabModel & ReturnType<typeof createRecovery>
 import type { Cursor } from './Editor.tsx'
 import type { createAppUpdate } from '../updates.ts'
 
-export default function StatusBar(props: { cursor: Cursor; update: ReturnType<typeof createAppUpdate>; tabs: Tabs }) {
+export default function StatusBar(props: { cursor: Cursor; update: ReturnType<typeof createAppUpdate>; tabs: Tabs; font: ReturnType<typeof createFontSize> }) {
   const active = createMemo(() => props.tabs.tabs.find(tab => tab.id === props.tabs.activeId()))
   const canFormat = createMemo(() => {
     const tab = active()
@@ -46,6 +48,7 @@ export default function StatusBar(props: { cursor: Cursor; update: ReturnType<ty
       <Show when={active()?.formatStatus === 'error'}>
         <span role="status">{active()?.formatError || 'Formatting unavailable'}</span>
       </Show>
+      <TextSettings font={props.font} update={props.update} />
       <LanguagePicker tabs={props.tabs} />
       <span>
         Ln {props.cursor.line}, Col {props.cursor.col}
