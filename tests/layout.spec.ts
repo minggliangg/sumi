@@ -127,3 +127,15 @@ test('the status bar is docked below the editor and never overlaps it', async ({
     expect(status!.x + status!.width).toBeLessThanOrEqual(viewport.width + 1)
   }
 })
+
+test('desktop footer controls use the compact inset while phones retain corner spacing', async ({ page }) => {
+  for (const [width, padding] of [[1000, '8px'], [375, '20px']]) {
+    await page.setViewportSize({ width: Number(width), height: 740 })
+    await expect.poll(() => page.locator('.status').evaluate(el => getComputedStyle(el).paddingLeft)).toBe(padding)
+  }
+  await page.setViewportSize({ width: 1000, height: 740 })
+  await page.getByRole('button', { name: 'Toggle tab layout', exact: true }).click()
+  const status = await page.locator('.status').boundingBox()
+  const toggle = await page.getByRole('button', { name: 'Hide tabs', exact: true }).boundingBox()
+  expect(toggle!.x - status!.x).toBe(8)
+})

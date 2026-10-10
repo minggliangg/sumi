@@ -10,6 +10,7 @@ A minimal text and code editor for desktop browsers and tablets with a keyboard.
 - Syntax highlighting and local formatting for JavaScript, TypeScript, JSX, TSX, Python, JSON, HTML, CSS, Markdown and SQL. Choose Auto, Plain text or a language per tab.
 - Markdown preview: split view in wide windows, full-width preview in narrow ones.
 - Six themes with light, dark and system modes; optional line numbers and adjustable text size.
+- A basic stopwatch and adjustable countdown in the status bar. Timers keep running with the panel closed and reset when the app reloads.
 - UTF-8 file import, download export and optional draft names (double-click a tab or press F2).
 
 Language packs, formatters and the Markdown renderer download on demand and cache for offline use. First use requires connectivity. Documents above 5 MiB of UTF-8 data use plain text and cannot be formatted.

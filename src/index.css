@@ -163,9 +163,27 @@ svg {
 }
 
 .editor-area > .editor {
+  position: relative;
   flex: 1 1 0;
   min-width: 0;
   min-height: 0;
+}
+
+.editor-position {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  z-index: 2;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
 }
 
 /* Narrow windows swap the editor for the preview; the editor stays mounted, just hidden. */
@@ -797,7 +815,7 @@ svg {
   justify-content: space-between;
   gap: 0 12px;
   min-height: var(--status-height);
-  padding: 0 8px 0 clamp(16px, 3vw, 40px);
+  padding: 0 8px;
   border-top: 1px solid var(--rule);
   color: var(--muted);
   font-size: 11px;
@@ -844,7 +862,6 @@ svg {
   color: var(--danger);
 }
 
-.status-position,
 .status-selected {
   padding: 0 6px;
   white-space: nowrap;
@@ -953,6 +970,71 @@ svg {
 }
 
 /* ---------- dialogs ---------- */
+
+.timer-dialog {
+  width: min(360px, calc(100% - 24px));
+}
+
+.timer-dialog .segmented {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 20px;
+}
+
+.time-display {
+  display: block;
+  margin: 24px 0;
+  text-align: center;
+  font-size: clamp(30px, 7vw, 42px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.duration-inputs {
+  display: flex;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.duration-inputs label {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+}
+
+.duration-inputs input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--faint);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 16px;
+}
+
+.duration-inputs input:disabled { opacity: 0.6; }
+
+.timer-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.timer-note {
+  margin: 16px 0 0;
+  color: var(--muted);
+}
+
+.timer-button[data-finished='true'] { color: var(--syntax-number); }
+.timer-error { color: var(--danger); }
+.timer-completion { white-space: nowrap; color: var(--syntax-number); }
+.timer-dialog .segment:disabled { cursor: default; opacity: 0.6; }
+
+@media (max-width: 640px) {
+  .timer-button { padding: 0 10px; }
+}
 
 .dialog {
   padding: clamp(18px, 3vw, 24px);

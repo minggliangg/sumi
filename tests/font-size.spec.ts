@@ -40,14 +40,14 @@ test('changing font size preserves the caret, document and undo history', async 
   await editor(page).fill('alpha')
   await page.keyboard.insertText(' beta')
   await editor(page).press('End')
-  await expect(page.locator('.status')).toContainText('Ln 1, Col 11')
+  await expect(page.locator('.editor-position')).toHaveText('Ln 1, Col 11')
   const before = await editor(page).innerText()
 
   await openSizeDialog(page)
   await sizeDialog(page).getByRole('button', { name: 'Increase font size', exact: true }).click()
   await page.keyboard.press('Escape')
   await expect(editor(page)).toHaveText(before)
-  await expect(page.locator('.status')).toContainText('Ln 1, Col 11')
+  await expect(page.locator('.editor-position')).toHaveText('Ln 1, Col 11')
 
   await editor(page).focus()
   await page.keyboard.press('ControlOrMeta+z')

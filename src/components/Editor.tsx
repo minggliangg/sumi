@@ -18,6 +18,7 @@ function cursorOf(state: EditorState): Cursor {
 interface Props {
   tabs: Tabs
   onCursor: (cursor: Cursor) => void
+  cursor: Cursor
   fontSize: number
   lineNumbers: boolean
 }
@@ -120,6 +121,8 @@ export default function Editor(props: Props) {
       role="tabpanel"
       aria-labelledby={`tab-control-${props.tabs.activeId()}`}
       ref={host}
-    />
+    >
+      <span class="editor-position" aria-live="off">Ln {props.cursor.line}, Col {props.cursor.col}</span>
+    </div>
   )
 }

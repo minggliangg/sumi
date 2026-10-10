@@ -15,6 +15,7 @@ interface Props {
   onTogglePreview: () => void
   onClosePreview: () => void
   onCursor: (cursor: Cursor) => void
+  cursor: Cursor
   fontSize: number
   lineNumbers: boolean
 }
@@ -56,7 +57,7 @@ export default function EditorArea(props: Props) {
 
   return (
     <div class="editor-area" ref={frame} data-preview={mode()}>
-      <Editor tabs={props.tabs} onCursor={props.onCursor} fontSize={props.fontSize} lineNumbers={props.lineNumbers} />
+      <Editor tabs={props.tabs} onCursor={props.onCursor} cursor={props.cursor} fontSize={props.fontSize} lineNumbers={props.lineNumbers} />
       <Show when={mode() !== 'off'}>
         <MarkdownPreview tabs={props.tabs} split={mode() === 'split'} onClose={closePreview} />
       </Show>

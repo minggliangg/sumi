@@ -1,4 +1,5 @@
 import Settings from './Settings.tsx'
+import Timer from './Timer.tsx'
 import type { Appearance } from '../appearance.ts'
 import type { createFontSize } from '../editor/font-size.ts'
 import { createMemo, Show } from 'solid-js'
@@ -7,10 +8,9 @@ import LanguagePicker from './LanguagePicker.tsx'
 import type { Tabs as TabModel } from '../tabs/tabs.ts'
 import type { createRecovery } from '../storage/recovery.ts'
 type Tabs = TabModel & ReturnType<typeof createRecovery>
-import type { Cursor } from './Editor.tsx'
 import type { createAppUpdate } from '../updates.ts'
 
-export default function StatusBar(props: { cursor: Cursor; update: ReturnType<typeof createAppUpdate>; tabs: Tabs; font: ReturnType<typeof createFontSize>; appearance: Appearance; tabsToggle: { available: boolean; hidden: boolean; toggle: () => void } }) {
+export default function StatusBar(props: { selected: number; update: ReturnType<typeof createAppUpdate>; tabs: Tabs; font: ReturnType<typeof createFontSize>; appearance: Appearance; tabsToggle: { available: boolean; hidden: boolean; toggle: () => void } }) {
   const active = createMemo(() => props.tabs.tabs.find(tab => tab.id === props.tabs.activeId()))
   const canFormat = createMemo(() => {
     const tab = active()
@@ -58,8 +58,8 @@ export default function StatusBar(props: { cursor: Cursor; update: ReturnType<ty
         </Show>
       </div>
       <div class="status-group status-group-end">
-        <Show when={props.cursor.selected > 0}>
-          <span class="status-selected">{props.cursor.selected} selected</span>
+        <Show when={props.selected > 0}>
+          <span class="status-selected">{props.selected} selected</span>
         </Show>
         <Show when={active()?.formatStatus === 'error'}>
           <span role="status" class="status-error">{active()?.formatError || 'Formatting unavailable'}</span>
@@ -76,11 +76,9 @@ export default function StatusBar(props: { cursor: Cursor; update: ReturnType<ty
           {active()?.formatStatus === 'formatting' ? <LoaderCircle size={14} class="spin" /> : <WandSparkles size={14} />}
           <span class="status-label">{active()?.formatStatus === 'formatting' ? 'Formatting…' : active()?.formatStatus === 'error' ? 'Retry format' : 'Format'}</span>
         </button>
+        <Timer />
         <Settings font={props.font} update={props.update} appearance={props.appearance} />
         <LanguagePicker tabs={props.tabs} />
-        <span class="status-position">
-          Ln {props.cursor.line}, Col {props.cursor.col}
-        </span>
       </div>
     </div>
   )

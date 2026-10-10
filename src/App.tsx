@@ -183,13 +183,14 @@ export default function App() {
           onTogglePreview={togglePreview}
           onClosePreview={() => setPreviewOpen(false)}
           onCursor={setCursor}
+          cursor={cursor()}
           fontSize={font.size()}
           lineNumbers={appearance.lineNumbers()}
         />
       </Show>
       <Show when={fileError()}><div class="file-error" role="status">{fileError()}</div></Show>
       <Recovery tabs={tabs} open={recoveryOpen()} onClose={() => setRecoveryOpen(false)} />
-      <StatusBar cursor={cursor()} update={update} tabs={tabs} font={font} appearance={appearance} tabsToggle={{ available: canHideTabs(), hidden: tabsHidden(), toggle: toggleTabs }} />
+      <StatusBar selected={cursor().selected} update={update} tabs={tabs} font={font} appearance={appearance} tabsToggle={{ available: canHideTabs(), hidden: tabsHidden(), toggle: toggleTabs }} />
       <ShortcutHelp open={showShortcuts()} onClose={() => setShowShortcuts(false)} />
     </main>
   )
