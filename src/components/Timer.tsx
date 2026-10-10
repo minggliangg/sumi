@@ -1,5 +1,6 @@
-import { createSignal, onCleanup } from 'solid-js'
+import { createSignal, onCleanup, Show } from 'solid-js'
 import { Timer as TimerIcon, X } from 'lucide-solid'
+import CountdownRipple from './CountdownRipple.tsx'
 
 type Mode = 'stopwatch' | 'countdown'
 type Status = 'idle' | 'running' | 'paused' | 'completed'
@@ -32,6 +33,7 @@ export default function Timer() {
   const [displayMs, setDisplayMs] = createSignal(0)
   const [minutes, setMinutes] = createSignal('5')
   const [seconds, setSeconds] = createSignal('0')
+  const [rippleTarget, setRippleTarget] = createSignal<'footer' | 'dialog' | null>(null)
   const configuredDuration = () => durationFromInputs(minutes(), seconds())
   const shownMs = () => status() === 'idle' && mode() === 'countdown' ? configuredDuration() ?? 0 : displayMs()
   const timeText = () => formatTime(shownMs(), mode() === 'countdown')
@@ -55,6 +57,9 @@ export default function Timer() {
     if (remaining === 0) {
       stopTicking()
       setStatus('completed')
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && !document.hidden) {
+        setRippleTarget(dialog.open ? 'dialog' : 'footer')
+      }
     }
   }
 
@@ -94,6 +99,7 @@ export default function Timer() {
   }
 
   function reset() {
+    setRippleTarget(null)
     stopTicking()
     accumulated = 0
     startedAt = 0
@@ -128,8 +134,14 @@ export default function Timer() {
       <TimerIcon size={14} />
       <span class="status-label">Timer</span>
       {status() !== 'idle' && <span class="timer-display" id="timer-trigger-time">{timeText()}</span>}
+      <Show when={rippleTarget() === 'footer'}><CountdownRipple onDone={() => setRippleTarget(null)} /></Show>
     </button>
-    {status() === 'completed' && <span class="timer-completion" role="status">Time’s up</span>}
+    <Show when={status() === 'completed'}>
+      <div class="timer-completion-row">
+        <span class="timer-completion" role="status">Time’s up</span>
+        <button type="button" class="timer-dismiss" onClick={() => { reset(); trigger.focus() }}>Dismiss</button>
+      </div>
+    </Show>
     <dialog
       ref={dialog}
       id="timer-dialog"
@@ -154,7 +166,10 @@ export default function Timer() {
         <button type="button" class="segment" aria-pressed={mode() === 'countdown'} disabled={status() !== 'idle'} onClick={() => setMode('countdown')}>Countdown</button>
       </div>
 
-      <output class="time-display" aria-label={`${mode()} time`} aria-live="off">{timeText()}</output>
+      <div class="timer-readout">
+        <output class="time-display" aria-label={`${mode()} time`} aria-live="off">{timeText()}</output>
+        <Show when={rippleTarget() === 'dialog'}><CountdownRipple onDone={() => setRippleTarget(null)} /></Show>
+      </div>
 
       {mode() === 'countdown' && <div class="duration-inputs">
         <label for="timer-minutes">Minutes

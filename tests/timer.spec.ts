@@ -73,3 +73,88 @@ test('countdown rejects zero and invalid seconds and fits on a phone', async ({ 
   const footer = await page.locator('.status').boundingBox()
   expect(footer!.x + footer!.width).toBeLessThanOrEqual(375)
 })
+
+test('completion ripple runs once, releases its canvas and leaves the timer usable', async ({ page }, testInfo) => {
+  await panel(page).getByRole('button', { name: 'Countdown', exact: true }).click()
+  await page.getByLabel('Minutes', { exact: true }).fill('0')
+  await page.getByLabel('Seconds', { exact: true }).fill('1')
+  await panel(page).getByRole('button', { name: 'Start', exact: true }).click()
+  await page.clock.runFor(1100)
+  await expect(panel(page).locator('.countdown-ripple')).toHaveCount(1)
+  await expect(page.locator('.timer-completion')).toHaveText('Time’s up')
+  await page.clock.runFor(500)
+  await page.screenshot({ path: testInfo.outputPath('countdown-ripple.png') })
+  await page.clock.runFor(2400)
+  await expect(page.locator('.countdown-ripple')).toHaveCount(0)
+  await panel(page).getByRole('button', { name: 'Reset', exact: true }).click()
+  await expect(panel(page).getByRole('button', { name: 'Start', exact: true })).toBeEnabled()
+})
+
+test('reduced motion skips completion graphics', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await panel(page).getByRole('button', { name: 'Countdown', exact: true }).click()
+  await page.getByLabel('Minutes', { exact: true }).fill('0')
+  await page.getByLabel('Seconds', { exact: true }).fill('1')
+  await panel(page).getByRole('button', { name: 'Start', exact: true }).click()
+  await page.clock.runFor(1100)
+  await expect(page.locator('.timer-completion')).toHaveText('Time’s up')
+  await expect(page.locator('.countdown-ripple')).toHaveCount(0)
+})
+
+test('WebGL unavailability leaves countdown completion intact', async ({ page }) => {
+  await page.evaluate(() => {
+    const original = HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = function (...args: Parameters<typeof original>) {
+      if (args[0] === 'webgl') return null
+      return original.apply(this, args)
+    } as typeof original
+  })
+  await panel(page).getByRole('button', { name: 'Countdown', exact: true }).click()
+  await page.getByLabel('Minutes', { exact: true }).fill('0')
+  await page.getByLabel('Seconds', { exact: true }).fill('1')
+  await panel(page).getByRole('button', { name: 'Start', exact: true }).click()
+  await page.clock.runFor(1100)
+  await expect(page.locator('.timer-completion')).toHaveText('Time’s up')
+  await expect(page.locator('.countdown-ripple')).toHaveCount(0)
+  await panel(page).getByRole('button', { name: 'Reset', exact: true }).click()
+  await expect(panel(page).getByRole('button', { name: 'Start', exact: true })).toBeEnabled()
+})
+
+test('on a phone, completion is a dismissible banner above a single-row footer', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 740 })
+  await panel(page).getByRole('button', { name: 'Countdown', exact: true }).click()
+  await page.getByLabel('Minutes', { exact: true }).fill('0')
+  await page.getByLabel('Seconds', { exact: true }).fill('1')
+  await panel(page).getByRole('button', { name: 'Start', exact: true }).click()
+  await page.keyboard.press('Escape')
+  await page.clock.fastForward(5000)
+  const banner = page.locator('.timer-completion-row')
+  await expect(banner).toBeVisible()
+  await expect(banner.locator('.timer-completion')).toHaveText('Time’s up')
+  const centre = (box: { y: number; height: number } | null) => box!.y + box!.height / 2
+  const bannerBox = await banner.boundingBox()
+  const dot = await page.locator('.status-dot').boundingBox()
+  const controls = await page.locator('.status button:visible:not(.timer-dismiss)').evaluateAll(buttons => buttons.map(b => Math.round(b.getBoundingClientRect().top + b.getBoundingClientRect().height / 2)))
+  // Every footer control shares one row below the banner, and the storage dot centres on it.
+  expect(Math.max(...controls) - Math.min(...controls)).toBeLessThanOrEqual(1)
+  expect(bannerBox!.y + bannerBox!.height).toBeLessThanOrEqual(controls[0])
+  expect(Math.abs(centre(dot) - (await page.locator('.format-button').evaluate(el => el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2)))).toBeLessThan(1)
+  await banner.getByRole('button', { name: 'Dismiss', exact: true }).click()
+  await expect(banner).toHaveCount(0)
+  await expect(trigger(page)).toBeFocused()
+})
+
+test('the finished banner never overflows or strands the storage dot on a very narrow phone', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 })
+  await panel(page).getByRole('button', { name: 'Countdown', exact: true }).click()
+  await page.getByLabel('Minutes', { exact: true }).fill('0')
+  await page.getByLabel('Seconds', { exact: true }).fill('1')
+  await panel(page).getByRole('button', { name: 'Start', exact: true }).click()
+  await page.keyboard.press('Escape')
+  await page.clock.fastForward(5000)
+  const footer = await page.locator('.status').boundingBox()
+  expect(footer!.x + footer!.width).toBeLessThanOrEqual(320)
+  const dot = await page.locator('.status-dot').boundingBox()
+  const format = await page.locator('.format-button').boundingBox()
+  expect(Math.abs((dot!.y + dot!.height / 2) - (format!.y + format!.height / 2))).toBeLessThan(1)
+})
