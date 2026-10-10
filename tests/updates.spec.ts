@@ -92,6 +92,32 @@ test('manual update check reports current version and detects an already waiting
   }
 })
 
+test('an available update does not reflow the footer on a phone', async ({ browser }) => {
+  const server = await updateServer()
+  const context = await browser.newContext({ viewport: { width: 375, height: 740 } })
+  try {
+    const page = await context.newPage()
+    await openApp(page, server.url)
+    const rowOf = async () => {
+      const status = await page.locator('.status').boundingBox()
+      const language = await page.locator('.language-button').boundingBox()
+      return { height: status!.height, languageY: language!.y }
+    }
+    const before = await rowOf()
+    server.next(true)
+    await installUpdate(page)
+    const button = page.getByRole('button', { name: 'Update available' })
+    const box = await button.boundingBox()
+    expect(box!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(375)
+    // Controls stay on the same line and the footer does not grow.
+    expect(await rowOf()).toEqual(before)
+  } finally {
+    await context.close()
+    await server.close()
+  }
+})
+
 test('manual update check reports a failed service worker request', async ({ browser }) => {
   const server = await updateServer()
   const context = await browser.newContext()

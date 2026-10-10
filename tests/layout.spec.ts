@@ -139,3 +139,51 @@ test('desktop footer controls use the compact inset while phones retain corner s
   const toggle = await page.getByRole('button', { name: 'Hide tabs', exact: true }).boundingBox()
   expect(toggle!.x - status!.x).toBe(8)
 })
+
+test('the layout keeps clear of the visual viewport area covered by the iOS shortcut bar', async ({ page }) => {
+  // Chromium never shrinks the visual viewport for a floating bar, so stand in for WebKit's.
+  await page.addInitScript(() => {
+    const viewport = Object.assign(new EventTarget(), { height: window.innerHeight, offsetTop: 0, scale: 1 })
+    Object.defineProperty(window, 'visualViewport', { value: viewport, configurable: true })
+    ;(window as unknown as { fakeViewport: typeof viewport }).fakeViewport = viewport
+  })
+  await page.goto('./')
+  const app = page.locator('.app')
+  const padding = () => app.evaluate(el => getComputedStyle(el).paddingBottom)
+  const shrink = (height: number, scale = 1) => page.evaluate(([h, s]) => {
+    const viewport = (window as unknown as { fakeViewport: { height: number; scale: number; dispatchEvent(e: Event): void } }).fakeViewport
+    viewport.height = window.innerHeight - h
+    viewport.scale = s
+    viewport.dispatchEvent(new Event('resize'))
+  }, [height, scale])
+  await expect.poll(padding).toBe('0px')
+  await shrink(64)
+  await expect.poll(padding).toBe('64px')
+  const status = await page.locator('.status').boundingBox()
+  const innerHeight = await page.evaluate(() => window.innerHeight)
+  expect(status!.y + status!.height).toBeLessThanOrEqual(innerHeight - 64 + 1)
+  // A pinch-zoomed viewport is smaller without anything covering the page.
+  await shrink(64, 2)
+  await expect.poll(padding).toBe('0px')
+  await shrink(0)
+  await expect.poll(padding).toBe('0px')
+})
+
+test('the web app manifest and iOS home-screen metadata use opaque PNG icons', async ({ page, request }) => {
+  await page.goto('./')
+  const touch = page.locator('link[rel="apple-touch-icon"]')
+  await expect(touch).toHaveAttribute('sizes', '180x180')
+  const icon = await request.get(await touch.evaluate(el => (el as HTMLLinkElement).href))
+  expect(icon.ok()).toBe(true)
+  expect(icon.headers()['content-type']).toBe('image/png')
+  const png = await icon.body()
+  expect(png.readUInt32BE(16)).toBe(180)
+  expect(png.readUInt32BE(20)).toBe(180)
+  // IHDR colour type 2 is RGB: iOS fills transparent pixels with black.
+  expect(png[25]).toBe(2)
+  await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute('content', 'yes')
+  await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute('content', 'sumi.')
+  const manifestUrl = await page.locator('link[rel="manifest"]').evaluate(el => (el as HTMLLinkElement).href)
+  const manifest = await (await request.get(manifestUrl)).json()
+  for (const { src, type } of manifest.icons) expect(type).toBe('image/png', src)
+})

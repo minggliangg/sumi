@@ -13,6 +13,7 @@ import { matchShortcut } from './shortcuts.ts'
 import { createTabs } from './tabs/tabs.ts'
 import { createAppUpdate } from './updates.ts'
 import { COMPACT_QUERY, createMediaQuery } from './media.ts'
+import { createViewportInset } from './viewport.ts'
 
 const LAYOUT_KEY = 'sumi:tab-layout'
 const TABS_HIDDEN_KEY = 'sumi:tabs-hidden'
@@ -36,6 +37,7 @@ function loadTabsHidden(): boolean {
 export default function App() {
   const font = createFontSize()
   const appearance = createAppearance()
+  createViewportInset()
   const model = createTabs()
   const persistence = createRecovery(model)
   const tabs = { ...model, ...persistence }
