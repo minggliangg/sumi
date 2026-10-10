@@ -1,8 +1,12 @@
 # sumi.
 
-A minimal text and code editor for desktop browsers and tablets with a keyboard. Install it as a PWA for a focused writing space.
+A quiet space for notes, drafts, and code. sumi. is a minimal editor for desktop browsers and tablets with a keyboard, with optional installation as a PWA.
 
 [Open sumi.](https://minggliangg.github.io/sumi/)
+
+![sumi. with Markdown source beside its live preview](docs/images/markdown-preview.png)
+
+Write in Markdown and see the preview alongside your draft. On narrow screens, switch between editing and preview.
 
 ## Features
 
