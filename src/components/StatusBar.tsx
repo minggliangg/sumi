@@ -3,7 +3,7 @@ import Timer from './Timer.tsx'
 import type { Appearance } from '../appearance.ts'
 import type { createFontSize } from '../editor/font-size.ts'
 import { createMemo, Show } from 'solid-js'
-import { LoaderCircle, PanelLeftClose, PanelLeftOpen, WandSparkles } from 'lucide-solid'
+import { CircleArrowUp, LoaderCircle, PanelLeftClose, PanelLeftOpen, WandSparkles } from 'lucide-solid'
 import LanguagePicker from './LanguagePicker.tsx'
 import type { Tabs as TabModel } from '../tabs/tabs.ts'
 import type { createRecovery } from '../storage/recovery.ts'
@@ -24,8 +24,25 @@ export default function StatusBar(props: { selected: number; update: ReturnType<
       default: return 'Not saved'
     }
   }
+  const formatError = () => active()?.formatStatus === 'error' ? active()?.formatError || 'Formatting unavailable' : ''
+  const hasNotices = () => props.tabs.storageStatus() === 'error' || !!props.update.error() || !!formatError()
   return (
     <div class="status" aria-live="off">
+      {/* Messages get their own full-width row so the controls below never reflow when one appears. */}
+      <Show when={hasNotices()}>
+        <div class="status-notices">
+          <Show when={props.tabs.storageStatus() === 'error'}>
+            <span role="status" class="status-error">{props.tabs.storageError()}</span>
+            <button type="button" class="status-button storage-retry" onClick={() => void props.tabs.storageRetry()}>Retry saving</button>
+          </Show>
+          <Show when={props.update.error()}>
+            <span role="status" class="status-error">{props.update.error()}</span>
+          </Show>
+          <Show when={formatError()}>
+            <span role="status" class="status-error">{formatError()}</span>
+          </Show>
+        </div>
+      </Show>
       <div class="status-group">
         <Show when={props.tabsToggle.available}>
           <button
@@ -44,25 +61,16 @@ export default function StatusBar(props: { selected: number; update: ReturnType<
           <span class="status-dot" aria-hidden="true" />
           <span class="storage-text">{storageLabel()}</span>
         </span>
-        <Show when={props.tabs.storageStatus() === 'error'}>
-          <span role="status" class="status-error">{props.tabs.storageError()}</span>
-          <button type="button" class="status-button storage-retry" onClick={() => void props.tabs.storageRetry()}>Retry saving</button>
-        </Show>
         <Show when={props.update.available()}>
           <button type="button" class="update-button" disabled={props.update.updating()} onClick={() => void props.update.apply()}>
-            {props.update.updating() ? 'Updating…' : 'Update available'}
+            {props.update.updating() ? <LoaderCircle size={14} class="spin" /> : <CircleArrowUp size={14} />}
+            <span class="status-label">{props.update.updating() ? 'Updating…' : 'Update available'}</span>
           </button>
-        </Show>
-        <Show when={props.update.error()}>
-          <span role="status" class="status-error">{props.update.error()}</span>
         </Show>
       </div>
       <div class="status-group status-group-end">
         <Show when={props.selected > 0}>
           <span class="status-selected">{props.selected} selected</span>
-        </Show>
-        <Show when={active()?.formatStatus === 'error'}>
-          <span role="status" class="status-error">{active()?.formatError || 'Formatting unavailable'}</span>
         </Show>
         <button
           type="button"

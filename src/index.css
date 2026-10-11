@@ -145,7 +145,7 @@ svg {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--tabbar-height) minmax(0, 1fr) auto;
   grid-template-areas: 'tabs' 'editor' 'status';
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) max(env(safe-area-inset-bottom), var(--viewport-inset-bottom, 0px)) env(safe-area-inset-left);
 }
 
 .tabbar { grid-area: tabs; }
@@ -822,17 +822,34 @@ svg {
   font-variant-numeric: tabular-nums;
 }
 
+/* The main row is fixed: the left group yields space (a 1px basis, so it still wraps below a
+   full-width row instead of sharing it) and never forces the controls onto a second line, so
+   conditional items cannot make the footer reflow. Only .status-notices and the timer banner
+   own full-width rows. */
 .status-group {
   display: flex;
-  flex-wrap: wrap;
+  flex: 1 1 1px;
   align-items: center;
   gap: 0 6px;
   min-width: 0;
 }
 
+.status-group > * { flex: none; }
+
 .status-group-end {
+  flex: none;
   justify-content: flex-end;
   margin-left: auto;
+}
+
+.status-notices {
+  display: flex;
+  flex: 0 0 100%;
+  order: -1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 12px;
+  padding: 6px 0 2px;
 }
 
 .storage {
@@ -861,7 +878,9 @@ svg {
 }
 
 .status-error {
+  min-width: 0;
   color: var(--danger);
+  overflow-wrap: anywhere;
 }
 
 .status-selected {
@@ -918,6 +937,10 @@ svg {
   color: var(--fg);
 }
 
+@media (max-width: 820px) {
+  .update-button { padding: 0 9px; }
+}
+
 .update-button:disabled {
   cursor: wait;
 }
@@ -926,7 +949,7 @@ svg {
   position: fixed;
   left: max(16px, env(safe-area-inset-left));
   right: 16px;
-  bottom: calc(var(--status-height) + env(safe-area-inset-bottom) + 12px);
+  bottom: calc(var(--status-height) + max(env(safe-area-inset-bottom), var(--viewport-inset-bottom, 0px)) + 12px);
   width: fit-content;
   max-width: calc(100% - 32px);
   padding: 9px 14px;
@@ -939,6 +962,19 @@ svg {
   z-index: 10;
 }
 
+/* Icon-only on phones and narrow windows; the text stays available to screen readers. */
+@media (max-width: 820px) {
+  .status-label,
+  [data-storage-status]:not([data-storage-status='error']) .storage-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 640px) {
   /* Matches the tab row's inset so the footer clears the rounded corners of modern phone screens. */
   .status {
@@ -948,17 +984,6 @@ svg {
 
   .status-group-end {
     gap: 0;
-  }
-
-  /* Icon-only on phones; the text stays available to screen readers. */
-  .status-label,
-  [data-storage-status]:not([data-storage-status='error']) .storage-text {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 
   .format-button,
@@ -1061,7 +1086,6 @@ svg {
 
   /* Phones: the footer's controls stay on one row and completion gets its own banner above them. */
   .status { column-gap: 0; justify-content: flex-end; }
-  .status-group { margin-right: auto; }
   .status-group-end { display: contents; }
 
   .timer-completion-row {
@@ -1563,7 +1587,9 @@ svg {
 }
 
 .settings p.status-error {
+  min-width: 0;
   color: var(--danger);
+  overflow-wrap: anywhere;
 }
 
 .settings-updates .settings-action {
