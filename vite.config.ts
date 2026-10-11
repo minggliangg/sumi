@@ -143,7 +143,7 @@ export default defineConfig({
     VitePWA({
       // Activation and reload require user approval while text lives in memory.
       registerType: 'prompt',
-      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon-v2.png'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,woff2}', 'language-assets-*.json'],
         cacheId: `sumi-${release}`,

@@ -93,7 +93,7 @@ try writeSVG(icon, size: 512, background: true, to: "public/favicon.svg")
 try writeSVG(logo, size: 1024, background: false, to: "assets/branding/sumi-logo.svg")
 writePNG(icon, canvas: 512, size: 1024, background: true, to: "assets/branding/app-icon-source.png")
 writePNG(logo, canvas: 1024, size: 1024, background: false, to: "assets/branding/sumi-logo.png")
-for (name, size) in [("apple-touch-icon.png",180),("icon-192.png",192),("icon-512.png",512),("icon-maskable-512.png",512)] {
+for (name, size) in [("apple-touch-icon-v2.png",180),("icon-192.png",192),("icon-512.png",512),("icon-maskable-512.png",512)] {
     writePNG(icon, canvas: 512, size: size, background: true, to: "public/\(name)")
 }
 print("Exported verified 墨 font outlines and PNG icons")
